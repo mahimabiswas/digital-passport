@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-
+import "./RoyaltyVerifier.sol";
 contract DigitalPassport is ERC721 {
 
     struct Product {
@@ -11,7 +11,8 @@ contract DigitalPassport is ERC721 {
         string name;
         string description;
         string nfcUid;
-        uint256 royaltyBasisPoints; // 500 = 5%, 1000 = 10%
+        uint256 royaltyBasisPoints;
+        uint256 minPrice;
         bool exists;
     }
 
@@ -50,16 +51,22 @@ contract DigitalPassport is ERC721 {
         uint256 royaltyPaid
     );
 
-    constructor() ERC721("DigitalPassport", "DGP") {}
+    Groth16Verifier public verifier;
+
+    constructor(address verifierAddress) ERC721("DigitalPassport", "DGP") {
+        verifier = Groth16Verifier(verifierAddress);
+    }
 
     function registerProduct(
         string memory name,
         string memory description,
         string memory nfcUid,
-        uint256 royaltyBasisPoints
+        uint256 royaltyBasisPoints,
+        uint256 minPrice
     ) external returns (uint256) {
         require(royaltyBasisPoints <= 5000, "Royalty cannot exceed 50%");
         require(bytes(nfcUid).length > 0, "NFC UID required");
+        require(minPrice > 0, "Min price must be greater than zero");
 
         uint256 tokenId = _nextTokenId++;
 
@@ -70,11 +77,11 @@ contract DigitalPassport is ERC721 {
             description: description,
             nfcUid: nfcUid,
             royaltyBasisPoints: royaltyBasisPoints,
+            minPrice: minPrice,
             exists: true
         });
 
         nfcToToken[nfcUid] = tokenId;
-
         _safeMint(msg.sender, tokenId);
 
         emit ProductRegistered(tokenId, msg.sender, name, nfcUid);
@@ -107,36 +114,47 @@ contract DigitalPassport is ERC721 {
     }
 
     // Step 2: buyer completes transfer with royalty payment
-    // ZKP proof to be added
-    function completeTransfer(uint256 tokenId) external payable {
-        PendingTransfer storage pending = pendingTransfers[tokenId];
+    function completeTransfer(
+        uint256 tokenId,
+        uint[2] calldata _pA,
+        uint[2][2] calldata _pB,
+        uint[2] calldata _pC,
+        uint[3] calldata _pubSignals
+    ) external payable {
+    PendingTransfer storage pending = pendingTransfers[tokenId];
 
-        require(pending.active, "No pending transfer");
-        require(pending.buyer == msg.sender, "Not the designated buyer");
-        require(msg.value >= pending.royaltyDue, "Insufficient royalty payment");
+    require(pending.active, "No pending transfer");
+    require(pending.buyer == msg.sender, "Not the designated buyer");
+    require(msg.value >= pending.royaltyDue, "Insufficient royalty payment");
 
-        address seller = pending.seller;
-        address creator = products[tokenId].creator;
-        uint256 royaltyPaid = pending.royaltyDue;
+    // Verify ZKP proof
+    bool validProof = verifier.verifyProof(_pA, _pB, _pC, _pubSignals);
+    require(validProof, "Invalid ZKP proof");
 
-        // Clear pending transfer before external call
-        pending.active = false;
+    // Verify public signals match what we expect
+    // _pubSignals[0] = minPrice, _pubSignals[1] = royaltyAmount, _pubSignals[2] = basisPoints
+    require(_pubSignals[1] == pending.royaltyDue, "Royalty mismatch");
+    require(_pubSignals[2] == products[tokenId].royaltyBasisPoints, "Basis points mismatch");
+    require(_pubSignals[0] == products[tokenId].minPrice, "Min price mismatch");
 
-        // Pay royalty to creator
-        (bool sent, ) = creator.call{value: royaltyPaid}("");
-        require(sent, "Royalty payment failed");
+    address seller = pending.seller;
+    address creator = products[tokenId].creator;
+    uint256 royaltyPaid = pending.royaltyDue;
 
-        // Refund any excess payment
-        if (msg.value > royaltyPaid) {
-            (bool refunded, ) = msg.sender.call{value: msg.value - royaltyPaid}("");
-            require(refunded, "Refund failed");
-        }
+    pending.active = false;
 
-        // Transfer the NFT
-        _transfer(seller, msg.sender, tokenId);
+    (bool sent, ) = creator.call{value: royaltyPaid}("");
+    require(sent, "Royalty payment failed");
 
-        emit OwnershipTransferred(tokenId, seller, msg.sender, royaltyPaid);
+    if (msg.value > royaltyPaid) {
+        (bool refunded, ) = msg.sender.call{value: msg.value - royaltyPaid}("");
+        require(refunded, "Refund failed");
     }
+
+    _transfer(seller, msg.sender, tokenId);
+
+    emit OwnershipTransferred(tokenId, seller, msg.sender, royaltyPaid);
+}
 
     function cancelTransfer(uint256 tokenId) external {
         PendingTransfer storage pending = pendingTransfers[tokenId];
