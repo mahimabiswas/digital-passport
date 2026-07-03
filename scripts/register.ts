@@ -2,7 +2,7 @@ import * as dotenv from "dotenv";
 dotenv.config();
 import hre from "hardhat";
 
-const CONTRACT_ADDRESS = "0x0b2dFa82a17a58e7413AE0521711eF60c88a1924";
+const CONTRACT_ADDRESS = "0x368b525374B2eE8493765dfc23013Ec5d2B47508";
 
 async function main() {
   const { ethers } = await import("ethers");
@@ -20,7 +20,8 @@ async function main() {
     "Air Max 1 - Sample 001",
     "Limited run sample, size 9",
     "04A3B2C1D0E9F8",
-    500  // 5% royalty (basis points)
+    500,                              // 5% royalty
+    ethers.parseEther("0.1")         // minimum price 0.1 ETH
   );
 
   console.log("Transaction sent:", tx.hash);
@@ -37,6 +38,7 @@ async function main() {
   console.log("  Current Owner:", owner);
   console.log("  NFC UID:", product.nfcUid);
   console.log("  Royalty:", product.royaltyBasisPoints.toString(), "basis points");
+  console.log("  Min Price:", ethers.formatEther(product.minPrice), "ETH");
 }
 
 main().catch((error) => {
