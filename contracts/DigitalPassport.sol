@@ -19,7 +19,6 @@ contract DigitalPassport is ERC721 {
     struct PendingTransfer {
         address seller;
         address buyer;
-        uint256 declaredPrice;  // in wei
         uint256 royaltyDue;     // in wei
         bool active;
     }
@@ -40,7 +39,6 @@ contract DigitalPassport is ERC721 {
         uint256 indexed tokenId,
         address indexed seller,
         address indexed buyer,
-        uint256 declaredPrice,
         uint256 royaltyDue
     );
 
@@ -92,25 +90,22 @@ contract DigitalPassport is ERC721 {
     function initiateTransfer(
         uint256 tokenId,
         address buyer,
-        uint256 declaredPrice
+        uint256 royaltyAmount
     ) external {
         require(products[tokenId].exists, "Product does not exist");
         require(ownerOf(tokenId) == msg.sender, "Not token owner");
         require(buyer != address(0), "Invalid buyer address");
-        require(declaredPrice > 0, "Price must be greater than zero");
+        require(royaltyAmount > 0, "Royalty must be greater than zero");
         require(!pendingTransfers[tokenId].active, "Transfer already pending");
-
-        uint256 royaltyDue = (declaredPrice * products[tokenId].royaltyBasisPoints) / 10000;
 
         pendingTransfers[tokenId] = PendingTransfer({
             seller: msg.sender,
             buyer: buyer,
-            declaredPrice: declaredPrice,
-            royaltyDue: royaltyDue,
+            royaltyDue: royaltyAmount,
             active: true
         });
 
-        emit TransferInitiated(tokenId, msg.sender, buyer, declaredPrice, royaltyDue);
+        emit TransferInitiated(tokenId, msg.sender, buyer, royaltyAmount);
     }
 
     // Step 2: buyer completes transfer with royalty payment

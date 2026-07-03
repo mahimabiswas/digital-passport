@@ -2,7 +2,7 @@ import * as dotenv from "dotenv";
 dotenv.config();
 import hre from "hardhat";
 
-const CONTRACT_ADDRESS = "0x368b525374B2eE8493765dfc23013Ec5d2B47508";
+const CONTRACT_ADDRESS = "0xb80dF6a3c2AA5Eed80F54D9eE2A2Fa0bA214dA15";
 
 async function main() {
   const { ethers } = await import("ethers");

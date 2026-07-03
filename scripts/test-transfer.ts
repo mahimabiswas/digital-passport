@@ -4,15 +4,19 @@ import hre from "hardhat";
 import * as snarkjs from "snarkjs";
 // import * as path from "path";
 
-const CONTRACT_ADDRESS = "0x368b525374B2eE8493765dfc23013Ec5d2B47508";
+const CONTRACT_ADDRESS = "0xb80dF6a3c2AA5Eed80F54D9eE2A2Fa0bA214dA15";
 
 async function main() {
-  const { ethers } = await import("ethers");
+    console.log("Script started");
+    const { ethers } = await import("ethers");
+    console.log("Ethers imported");
 
-  const privateKey = process.env.SEPOLIA_PRIVATE_KEY!;
-  const rpcUrl = process.env.SEPOLIA_RPC_URL!;
+    const privateKey = process.env.SEPOLIA_PRIVATE_KEY!;
+    const rpcUrl = process.env.SEPOLIA_RPC_URL!;
+    console.log("Keys loaded");
 
-  const provider = new ethers.JsonRpcProvider(rpcUrl);
+    const provider = new ethers.JsonRpcProvider(rpcUrl);
+    console.log("Provider created");
   const seller = new ethers.Wallet(privateKey, provider);
 
   // For testing, buyer is a different wallet
@@ -38,7 +42,7 @@ async function main() {
   // Step 1 - Initiate transfer
   console.log("\nStep 1: Initiating transfer...");
 //   const initTx = await contract.initiateTransfer(TOKEN_ID, buyer.address, SALE_PRICE);
-  const initTx = await contract.initiateTransfer(TOKEN_ID, seller.address, SALE_PRICE);
+  const initTx = await contract.initiateTransfer(TOKEN_ID, seller.address, ROYALTY_DUE);
   await initTx.wait();
   console.log("Transfer initiated");
 
@@ -98,11 +102,10 @@ async function main() {
   console.log("\nNew owner:", newOwner);
   console.log("Expected:", buyer.address);
   console.log("Match:", newOwner.toLowerCase() === buyer.address.toLowerCase());
+  process.exit(0);
 }
 
 main().catch((error) => {
   console.error(error);
   process.exit(1);
 });
-
-process.exit(0);
