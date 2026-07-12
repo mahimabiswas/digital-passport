@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import connectDB from "./db";
 import productRoutes from "./routes/products";
+import historyRoutes from './routes/history'
 
 dotenv.config();
 
@@ -15,7 +16,7 @@ app.use(express.json());
 
 // Routes
 app.use("/api/products", productRoutes);
-
+app.use("/api/history", historyRoutes);
 // Health check
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
