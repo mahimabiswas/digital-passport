@@ -72,4 +72,27 @@ export const CONTRACT_ABI = [
             { name: 'tokenId', type: 'uint256', indexed: true },
         ],
     },
+    {
+        name: 'registerProduct',
+        type: 'function',
+        stateMutability: 'nonpayable',
+        inputs: [
+            { name: 'name', type: 'string' },
+            { name: 'description', type: 'string' },
+            { name: 'nfcUid', type: 'string' },
+            { name: 'royaltyBasisPoints', type: 'uint256' },
+            { name: 'minPrice', type: 'uint256' },
+        ],
+        outputs: [{ name: '', type: 'uint256' }],
+    },
+    {
+        name: 'ProductRegistered',
+        type: 'event',
+        inputs: [
+            { name: 'tokenId', type: 'uint256', indexed: true },
+            { name: 'creator', type: 'address', indexed: true },
+            { name: 'name', type: 'string', indexed: false },
+            { name: 'nfcUid', type: 'string', indexed: false },
+        ],
+    },
 ] as const

@@ -4,6 +4,8 @@ import dotenv from "dotenv";
 import connectDB from "./db";
 import productRoutes from "./routes/products";
 import historyRoutes from './routes/history'
+import path from 'path'
+import uploadRoutes from './routes/upload'
 
 dotenv.config();
 
@@ -17,6 +19,8 @@ app.use(express.json());
 // Routes
 app.use("/api/products", productRoutes);
 app.use("/api/history", historyRoutes);
+app.use('/api/upload', uploadRoutes)
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 // Health check
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });

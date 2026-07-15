@@ -3,7 +3,7 @@ import Product from "../models/Product";
 
 const router = Router();
 
-// POST /api/products - save product metadata after minting
+// POST /api/products - create a new product
 router.post("/", async (req: Request, res: Response) => {
   try {
     const {
@@ -15,17 +15,17 @@ router.post("/", async (req: Request, res: Response) => {
       creatorAddress,
       royaltyBasisPoints,
       minPrice,
-    } = req.body;
+    } = req.body
 
-    // Check if product already exists
-    const existing = await Product.findOne({ tokenId });
+    // Check by NFC UID — not tokenId
+    const existing = await Product.findOne({ nfcUid })
     if (existing) {
-      res.status(409).json({ error: "Product with this tokenId already exists" });
-      return;
+      res.status(409).json({ error: "Product with this NFC UID already exists" })
+      return
     }
 
     const product = new Product({
-      tokenId,
+      tokenId: tokenId ?? null,
       name,
       description,
       nfcUid,
@@ -33,15 +33,56 @@ router.post("/", async (req: Request, res: Response) => {
       creatorAddress: creatorAddress.toLowerCase(),
       royaltyBasisPoints,
       minPrice,
-    });
+    })
 
-    await product.save();
-    res.status(201).json(product);
+    await product.save()
+    res.status(201).json(product)
   } catch (error) {
-    console.error("Error saving product:", error);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("Error saving product:", error)
+    res.status(500).json({ error: "Internal server error" })
   }
-});
+})
+
+// GET by NFC UID
+router.get("/nfc/:nfcUid", async (req: Request, res: Response) => {
+  try {
+    const nfcUid = req.params.nfcUid as string
+    const product = await Product.findOne({ nfcUid })
+
+    if (!product) {
+      res.status(404).json({ error: "Product not found" })
+      return
+    }
+
+    res.json(product)
+  } catch (error) {
+    console.error("Error fetching product by NFC:", error)
+    res.status(500).json({ error: "Internal server error" })
+  }
+})
+
+router.patch("/nfc/:nfcUid", async (req: Request, res: Response) => {
+  try {
+    const { nfcUid } = req.params
+    const { tokenId, transactionHash } = req.body
+
+    const product = await Product.findOneAndUpdate(
+      { nfcUid },
+      { tokenId, transactionHash },
+      { new: true }
+    )
+
+    if (!product) {
+      res.status(404).json({ error: "Product not found" })
+      return
+    }
+
+    res.json(product)
+  } catch (error) {
+    console.error("Error updating tokenId:", error)
+    res.status(500).json({ error: "Internal server error" })
+  }
+})
 
 // GET /api/products/:tokenId - get product by token ID
 router.get("/:tokenId", async (req: Request, res: Response) => {
@@ -61,22 +102,6 @@ router.get("/:tokenId", async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/products/nfc/:nfcUid - get product by NFC UID
-router.get("/nfc/:nfcUid", async (req: Request, res: Response) => {
-  try {
-    const nfcUid = req.params.nfcUid as string;
-    const product = await Product.findOne({ nfcUid });
 
-    if (!product) {
-      res.status(404).json({ error: "Product not found" });
-      return;
-    }
-
-    res.json(product);
-  } catch (error) {
-    console.error("Error fetching product by NFC:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
 
 export default router;
