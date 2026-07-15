@@ -6,6 +6,7 @@ import { config } from './config/wagmi'
 import Header from './components/Header'
 import PassportPage from './pages/PassportPage'
 import RegisterPage from './pages/RegisterPage'
+import DashboardPage from './pages/DashboardPage'
 import '@rainbow-me/rainbowkit/styles.css'
 
 const queryClient = new QueryClient()
@@ -20,7 +21,7 @@ function App() {
             <Routes>
               <Route path="/" element={<div className="text-primary p-8 pt-20 font-display text-4xl">DIGITAL PASSPORT</div>} />
               <Route path="/register" element={<RegisterPage />} />
-              <Route path="/dashboard" element={<div className="text-primary p-8 pt-20">Dashboard</div>} />
+              <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/passport/:nfcUid" element={<PassportPage />} />
               <Route path="/transfer/:tokenId" element={<div className="text-primary p-8 pt-20">Transfer</div>} />
             </Routes>

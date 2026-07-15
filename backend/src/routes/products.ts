@@ -102,6 +102,17 @@ router.get("/:tokenId", async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/products/creator/:address - get all products by creator
+router.get("/creator/:address", async (req: Request, res: Response) => {
+  try {
+    const address = (req.params.address as string).toLowerCase()
+    const products = await Product.find({ creatorAddress: address })
+    res.json(products)
+  } catch (error) {
+    console.error("Error fetching creator products:", error)
+    res.status(500).json({ error: "Internal server error" })
+  }
+})
 
 
 export default router;
