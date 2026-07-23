@@ -95,4 +95,37 @@ export const CONTRACT_ABI = [
             { name: 'nfcUid', type: 'string', indexed: false },
         ],
     },
+    {
+        name: 'initiateTransfer',
+        type: 'function',
+        stateMutability: 'nonpayable',
+        inputs: [
+            { name: 'tokenId', type: 'uint256' },
+            { name: 'buyer', type: 'address' },
+            { name: 'royaltyAmount', type: 'uint256' },
+        ],
+        outputs: [],
+    },
+    {
+        name: 'completeTransfer',
+        type: 'function',
+        stateMutability: 'payable',
+        inputs: [
+            { name: 'tokenId', type: 'uint256' },
+            { name: '_pA', type: 'uint256[2]' },
+            { name: '_pB', type: 'uint256[2][2]' },
+            { name: '_pC', type: 'uint256[2]' },
+            { name: '_pubSignals', type: 'uint256[3]' },
+        ],
+        outputs: [],
+    },
+    {
+        name: 'cancelTransfer',
+        type: 'function',
+        stateMutability: 'nonpayable',
+        inputs: [
+            { name: 'tokenId', type: 'uint256' },
+        ],
+        outputs: [],
+    },
 ] as const
