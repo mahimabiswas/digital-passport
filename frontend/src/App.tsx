@@ -8,7 +8,7 @@ import PassportPage from './pages/PassportPage'
 import RegisterPage from './pages/RegisterPage'
 import DashboardPage from './pages/DashboardPage'
 import '@rainbow-me/rainbowkit/styles.css'
-
+import LandingPage from './pages/LandingPage'
 const queryClient = new QueryClient()
 
 function App() {
@@ -19,7 +19,7 @@ function App() {
           <BrowserRouter>
             <Header />
             <Routes>
-              <Route path="/" element={<div className="text-primary p-8 pt-20 font-display text-4xl">DIGITAL PASSPORT</div>} />
+              <Route path="/" element={<LandingPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/passport/:nfcUid" element={<PassportPage />} />
