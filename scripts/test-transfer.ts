@@ -4,7 +4,7 @@ import hre from "hardhat";
 import * as snarkjs from "snarkjs";
 // import * as path from "path";
 
-const CONTRACT_ADDRESS = "0xb80dF6a3c2AA5Eed80F54D9eE2A2Fa0bA214dA15";
+const CONTRACT_ADDRESS = '0xD3966AD1E6A52Bdf23E2E2834a4e3b16f677bB5C';
 
 async function main() {
     console.log("Script started");

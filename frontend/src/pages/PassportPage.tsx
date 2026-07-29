@@ -5,18 +5,16 @@ import { CONTRACT_ADDRESS, CONTRACT_ABI } from '../config/contract'
 import { useAccount, useWriteContract } from 'wagmi'
 import { parseEther, createPublicClient, http } from 'viem'
 import { sepolia } from 'viem/chains'
-import * as snarkjs from 'snarkjs'
 
 export default function PassportPage() {
     const { nfcUid } = useParams()
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'
-    // Off-chain metadata from backend
+
     const [metadata, setMetadata] = useState<{
         imageUrl: string
         description: string
     } | null>(null)
 
-    // Ownership history from backend (which queries Etherscan)
     const [history, setHistory] = useState<{
         from: string
         to: string
@@ -27,14 +25,12 @@ export default function PassportPage() {
     const { address } = useAccount()
     const { writeContractAsync } = useWriteContract()
 
-    // Transfer state
     const [showInitiateForm, setShowInitiateForm] = useState(false)
-    const [showCompleteForm, setShowCompleteForm] = useState(false)
     const [buyerAddress, setBuyerAddress] = useState('')
     const [salePrice, setSalePrice] = useState('')
-    const [transferStep, setTransferStep] = useState<'idle' | 'generating' | 'confirming' | 'done' | 'error'>('idle')
+    const [transferStep, setTransferStep] = useState<'idle' | 'confirming' | 'done' | 'error'>('idle')
     const [transferError, setTransferError] = useState<string | null>(null)
-    // Step 1 — get tokenId directly from contract using NFC UID
+
     const { data: tokenId } = useReadContract({
         address: CONTRACT_ADDRESS,
         abi: CONTRACT_ABI,
@@ -43,7 +39,6 @@ export default function PassportPage() {
         query: { enabled: !!nfcUid },
     })
 
-    // Step 2 — get full product data from contract
     const { data: product } = useReadContract({
         address: CONTRACT_ADDRESS,
         abi: CONTRACT_ABI,
@@ -52,7 +47,6 @@ export default function PassportPage() {
         query: { enabled: tokenId !== undefined },
     })
 
-    // Step 3 — get current owner from contract
     const { data: currentOwner } = useReadContract({
         address: CONTRACT_ADDRESS,
         abi: CONTRACT_ABI,
@@ -61,28 +55,22 @@ export default function PassportPage() {
         query: { enabled: tokenId !== undefined },
     })
 
-    // Step 4 — get pending transfer from contract
-    const { data: pendingTransfer } = useReadContract({
+    const { data: pendingTransfer, refetch: refetchPending } = useReadContract({
         address: CONTRACT_ADDRESS,
         abi: CONTRACT_ABI,
-        functionName: 'pendingTransfers',
+        functionName: 'getPendingTransfer',
         args: tokenId !== undefined ? [tokenId] : undefined,
         query: { enabled: tokenId !== undefined },
     })
 
-    // Step 5 — get image and description from backend
     useEffect(() => {
         if (!nfcUid) return
         fetch(`${BACKEND_URL}/api/products/nfc/${nfcUid}`)
             .then(res => res.json())
-            .then(data => setMetadata({
-                imageUrl: data.imageUrl,
-                description: data.description,
-            }))
+            .then(data => setMetadata({ imageUrl: data.imageUrl, description: data.description }))
             .catch(err => console.error('Failed to fetch metadata:', err))
     }, [nfcUid])
 
-    // Step 6 — get ownership history from backend
     useEffect(() => {
         if (tokenId === undefined) return
         fetch(`${BACKEND_URL}/api/history/${tokenId.toString()}`)
@@ -91,7 +79,6 @@ export default function PassportPage() {
             .catch(err => console.error('Failed to fetch history:', err))
     }, [tokenId])
 
-    // Loading state — wait for product data from chain
     if (!product) return (
         <div className="min-h-screen pt-14 flex items-center justify-center">
             <p className="font-mono text-[11px] tracking-widest text-muted-foreground animate-pulse">
@@ -99,14 +86,18 @@ export default function PassportPage() {
             </p>
         </div>
     )
+
+    const isPrimarySale = product.previousOwner === '0x0000000000000000000000000000000000000000'
+
     const royaltyDue = (salePrice: string, basisPoints: bigint): bigint => {
-        if (!salePrice) return 0n
+        if (!salePrice || isPrimarySale) return 0n
         const priceWei = parseEther(salePrice)
         return (priceWei * basisPoints) / 10000n
     }
 
     const handleInitiateTransfer = async () => {
-        if (!buyerAddress || !salePrice || !product || tokenId === undefined) return
+        if (!buyerAddress || !product || tokenId === undefined) return
+        if (!isPrimarySale && !salePrice) return
         setTransferError(null)
 
         try {
@@ -132,52 +123,50 @@ export default function PassportPage() {
         }
     }
 
-    const handleCompleteTransfer = async () => {
-        if (!salePrice || !product || tokenId === undefined || !pendingTransfer) return
+    const handleDepositEscrow = async () => {
+        if (!pendingTransfer || tokenId === undefined) return
         setTransferError(null)
 
         try {
-            // Step 1 — generate ZKP proof in browser
-            setTransferStep('generating')
-            const priceWei = parseEther(salePrice)
-            const minPriceWei = product.minPrice
-
-            const input = {
-                price: priceWei.toString(),
-                minPrice: minPriceWei.toString(),
-                royaltyAmount: pendingTransfer.royaltyDue.toString(),
-                basisPoints: product.royaltyBasisPoints.toString(),
-            }
-
-            const { proof, publicSignals } = await snarkjs.groth16.fullProve(
-                input,
-                '/RoyaltyProof.wasm',
-                '/royalty_0001.zkey'
-            )
-
-            const calldata = await snarkjs.groth16.exportSolidityCallData(proof, publicSignals)
-            const calldataJson = JSON.parse('[' + calldata + ']')
-            const pA = calldataJson[0]
-            const pB = calldataJson[1]
-            const pC = calldataJson[2]
-            const pubSignals = calldataJson[3]
-
-            // Step 2 — submit proof + payment on-chain
             setTransferStep('confirming')
             const { sepolia: sepoliaChain } = await import('viem/chains')
 
             await writeContractAsync({
                 address: CONTRACT_ADDRESS,
                 abi: CONTRACT_ABI,
-                functionName: 'completeTransfer',
-                args: [tokenId, pA, pB, pC, pubSignals],
+                functionName: 'depositEscrow',
+                args: [tokenId],
                 value: pendingTransfer.royaltyDue,
                 chain: sepoliaChain,
                 account: address,
             })
 
+            setTransferStep('idle')
+            refetchPending()
+        } catch (err: any) {
+            setTransferError(err.message || 'Transaction failed')
+            setTransferStep('error')
+        }
+    }
+
+    const handleConfirmReceipt = async () => {
+        if (tokenId === undefined) return
+        setTransferError(null)
+
+        try {
+            setTransferStep('confirming')
+            const { sepolia: sepoliaChain } = await import('viem/chains')
+
+            await writeContractAsync({
+                address: CONTRACT_ADDRESS,
+                abi: CONTRACT_ABI,
+                functionName: 'confirmReceipt',
+                args: [tokenId],
+                chain: sepoliaChain,
+                account: address,
+            })
+
             setTransferStep('done')
-            setShowCompleteForm(false)
             window.location.reload()
         } catch (err: any) {
             setTransferError(err.message || 'Transaction failed')
@@ -202,6 +191,7 @@ export default function PassportPage() {
             console.error(err)
         }
     }
+
     return (
         <div className="min-h-screen pt-14">
             <div className="max-w-4xl mx-auto px-6 py-12">
@@ -265,7 +255,7 @@ export default function PassportPage() {
                                 { label: 'TOKEN ID', value: `#${product.tokenId.toString()}` },
                                 { label: 'NFC UID', value: product.nfcUid },
                                 { label: 'ROYALTY', value: `${Number(product.royaltyBasisPoints) / 100}%` },
-                                { label: 'MIN RESALE', value: `${(Number(product.minPrice) / 1e18).toFixed(3)} ETH` },
+                                { label: 'SALE TYPE', value: isPrimarySale ? 'PRIMARY (NO ROYALTY)' : 'SECONDARY' },
                             ].map((item, i) => (
                                 <div
                                     key={i}
@@ -318,7 +308,7 @@ export default function PassportPage() {
 
                 {/* Ownership History */}
                 {history.length > 0 && (
-                    <div className="border border-border">
+                    <div className="border border-border mb-8">
                         <div className="px-6 py-4 border-b border-border">
                             <p className="font-mono text-[10px] tracking-widest text-muted-foreground">
                                 OWNERSHIP HISTORY
@@ -352,9 +342,10 @@ export default function PassportPage() {
                 )}
 
             </div>
+
             {/* Transfer Actions */}
             {address && product && tokenId !== undefined && (
-                <div className="mt-8">
+                <div className="max-w-4xl mx-auto px-6 pb-12">
 
                     {/* Seller — initiate transfer */}
                     {currentOwner?.toLowerCase() === address.toLowerCase() && !pendingTransfer?.active && (
@@ -385,24 +376,33 @@ export default function PassportPage() {
                                             className="w-full bg-transparent border border-border px-3 py-2 font-mono text-sm text-foreground outline-none focus:border-primary/50"
                                         />
                                     </div>
-                                    <div>
-                                        <label className="font-mono text-[10px] tracking-widest text-muted-foreground block mb-2">
-                                            AGREED SALE PRICE (ETH)
-                                        </label>
-                                        <input
-                                            type="number"
-                                            value={salePrice}
-                                            onChange={e => setSalePrice(e.target.value)}
-                                            placeholder="0.5"
-                                            step="0.01"
-                                            className="w-full bg-transparent border border-border px-3 py-2 font-mono text-sm text-foreground outline-none focus:border-primary/50"
-                                        />
-                                        {salePrice && (
-                                            <p className="font-mono text-[10px] text-muted-foreground mt-1">
-                                                ROYALTY DUE: {Number(royaltyDue(salePrice, product.royaltyBasisPoints)) / 1e18} ETH
-                                            </p>
-                                        )}
-                                    </div>
+
+                                    {!isPrimarySale && (
+                                        <div>
+                                            <label className="font-mono text-[10px] tracking-widest text-muted-foreground block mb-2">
+                                                AGREED SALE PRICE (ETH)
+                                            </label>
+                                            <input
+                                                type="number"
+                                                value={salePrice}
+                                                onChange={e => setSalePrice(e.target.value)}
+                                                placeholder="0.5"
+                                                step="0.01"
+                                                className="w-full bg-transparent border border-border px-3 py-2 font-mono text-sm text-foreground outline-none focus:border-primary/50"
+                                            />
+                                            {salePrice && (
+                                                <p className="font-mono text-[10px] text-muted-foreground mt-1">
+                                                    ROYALTY DUE: {Number(royaltyDue(salePrice, product.royaltyBasisPoints)) / 1e18} ETH
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {isPrimarySale && (
+                                        <p className="font-mono text-[10px] text-muted-foreground/60">
+                                            PRIMARY SALE — NO ROYALTY REQUIRED
+                                        </p>
+                                    )}
 
                                     {transferError && (
                                         <p className="font-mono text-[10px] text-destructive">{transferError}</p>
@@ -435,7 +435,7 @@ export default function PassportPage() {
                         </div>
                     )}
 
-                    {/* Buyer — complete transfer */}
+                    {/* Buyer — deposit escrow then confirm receipt */}
                     {pendingTransfer?.active &&
                         pendingTransfer.buyer.toLowerCase() === address.toLowerCase() && (
                             <div className="border border-primary/40">
@@ -443,48 +443,66 @@ export default function PassportPage() {
                                     <p className="font-mono text-[10px] tracking-widest text-primary mb-1">
                                         TRANSFER AWAITING YOUR COMPLETION
                                     </p>
-                                    <p className="font-mono text-[10px] text-muted-foreground">
-                                        ROYALTY DUE: {Number(pendingTransfer.royaltyDue) / 1e18} ETH
-                                    </p>
+                                    {pendingTransfer.royaltyDue > 0n && (
+                                        <p className="font-mono text-[10px] text-muted-foreground">
+                                            ROYALTY DUE: {Number(pendingTransfer.royaltyDue) / 1e18} ETH
+                                        </p>
+                                    )}
                                 </div>
 
-                                <div className="p-6 space-y-4">
-                                    <div>
-                                        <label className="font-mono text-[10px] tracking-widest text-muted-foreground block mb-2">
-                                            ENTER AGREED SALE PRICE (PRIVATE — STAYS IN BROWSER)
-                                        </label>
-                                        <input
-                                            type="number"
-                                            value={salePrice}
-                                            onChange={e => setSalePrice(e.target.value)}
-                                            placeholder="0.5"
-                                            step="0.01"
-                                            className="w-full bg-transparent border border-border px-3 py-2 font-mono text-sm text-foreground outline-none focus:border-primary/50"
-                                        />
-                                        <p className="font-mono text-[10px] text-muted-foreground/60 mt-1">
-                                            Used to generate ZKP proof. Never sent to any server.
-                                        </p>
-                                    </div>
-
-                                    {transferStep === 'generating' && (
-                                        <p className="font-mono text-[10px] text-primary animate-pulse">
-                                            GENERATING ZERO-KNOWLEDGE PROOF...
-                                        </p>
+                                <div className="p-6 space-y-3">
+                                    {pendingTransfer.royaltyDue === 0n ? (
+                                        // Primary sale — no escrow needed
+                                        <>
+                                            <p className="font-mono text-[10px] text-muted-foreground/60">
+                                                PRIMARY SALE — Tap the NFC tag to verify you have received the item, then confirm to complete the transfer.
+                                            </p>
+                                            {transferError && (
+                                                <p className="font-mono text-[10px] text-destructive">{transferError}</p>
+                                            )}
+                                            <button
+                                                onClick={handleConfirmReceipt}
+                                                disabled={transferStep === 'confirming'}
+                                                className="w-full py-3 bg-primary text-primary-foreground font-mono text-[11px] tracking-widest hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                                            >
+                                                {transferStep === 'confirming' ? 'CONFIRMING...' : 'CONFIRM RECEIPT & COMPLETE TRANSFER'}
+                                            </button>
+                                        </>
+                                    ) : !pendingTransfer.escrowDeposited ? (
+                                        // Secondary sale step 1 — deposit
+                                        <>
+                                            <p className="font-mono text-[10px] text-muted-foreground/60">
+                                                STEP 1 — Deposit royalty into escrow. Funds are held in the contract until you confirm receipt of the physical item.
+                                            </p>
+                                            {transferError && (
+                                                <p className="font-mono text-[10px] text-destructive">{transferError}</p>
+                                            )}
+                                            <button
+                                                onClick={handleDepositEscrow}
+                                                disabled={transferStep === 'confirming'}
+                                                className="w-full py-3 bg-primary text-primary-foreground font-mono text-[11px] tracking-widest hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                                            >
+                                                {transferStep === 'confirming' ? 'DEPOSITING...' : `DEPOSIT ${Number(pendingTransfer.royaltyDue) / 1e18} ETH INTO ESCROW`}
+                                            </button>
+                                        </>
+                                    ) : (
+                                        // Secondary sale step 2 — confirm
+                                        <>
+                                            <p className="font-mono text-[10px] text-muted-foreground/60">
+                                                STEP 2 — Tap the NFC tag on the physical item to verify you have received it, then confirm to release escrow and complete the transfer.
+                                            </p>
+                                            {transferError && (
+                                                <p className="font-mono text-[10px] text-destructive">{transferError}</p>
+                                            )}
+                                            <button
+                                                onClick={handleConfirmReceipt}
+                                                disabled={transferStep === 'confirming'}
+                                                className="w-full py-3 bg-primary text-primary-foreground font-mono text-[11px] tracking-widest hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                                            >
+                                                {transferStep === 'confirming' ? 'CONFIRMING...' : 'CONFIRM RECEIPT & COMPLETE TRANSFER'}
+                                            </button>
+                                        </>
                                     )}
-
-                                    {transferError && (
-                                        <p className="font-mono text-[10px] text-destructive">{transferError}</p>
-                                    )}
-
-                                    <button
-                                        onClick={handleCompleteTransfer}
-                                        disabled={transferStep === 'generating' || transferStep === 'confirming'}
-                                        className="w-full py-3 bg-primary text-primary-foreground font-mono text-[11px] tracking-widest hover:bg-primary/90 disabled:opacity-50 transition-colors"
-                                    >
-                                        {transferStep === 'generating' ? 'GENERATING PROOF...' :
-                                            transferStep === 'confirming' ? 'CONFIRMING ON-CHAIN...' :
-                                                `COMPLETE TRANSFER & PAY ${Number(pendingTransfer.royaltyDue) / 1e18} ETH`}
-                                    </button>
                                 </div>
                             </div>
                         )}

@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useWriteContract, useWaitForTransactionReceipt, useAccount } from 'wagmi'
+import { useWriteContract, useAccount } from 'wagmi'
 import { CONTRACT_ADDRESS, CONTRACT_ABI } from '../config/contract'
-import { decodeEventLog, parseEther } from 'viem'
+import { decodeEventLog } from 'viem'
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL
 
@@ -10,20 +10,16 @@ export default function RegisterPage() {
     const navigate = useNavigate()
     const { address, isConnected } = useAccount()
 
-    // Form state
     const [name, setName] = useState('')
     const [description, setDescription] = useState('')
     const [nfcUid, setNfcUid] = useState('')
     const [royaltyPercent, setRoyaltyPercent] = useState('')
-    const [minPrice, setMinPrice] = useState('')
     const [imageFile, setImageFile] = useState<File | null>(null)
     const [imagePreview, setImagePreview] = useState<string | null>(null)
 
-    // Status
-    const [step, setStep] = useState<'idle' | 'uploading' | 'minting' | 'saving' | 'done' | 'error'>('idle')
+    const [step, setStep] = useState<'idle' | 'uploading' | 'saving' | 'minting' | 'done' | 'error'>('idle')
     const [error, setError] = useState<string | null>(null)
 
-    // Wagmi hooks
     const { writeContractAsync } = useWriteContract()
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -38,7 +34,7 @@ export default function RegisterPage() {
             setError('Please connect your wallet first')
             return
         }
-        if (!name || !description || !nfcUid || !royaltyPercent || !minPrice) {
+        if (!name || !description || !nfcUid || !royaltyPercent) {
             setError('Please fill in all fields')
             return
         }
@@ -46,7 +42,7 @@ export default function RegisterPage() {
         setError(null)
 
         try {
-            // Step 1 — upload image
+            // upload image
             setStep('uploading')
             let imageUrl = ''
 
@@ -62,10 +58,9 @@ export default function RegisterPage() {
                 imageUrl = uploadData.imageUrl
             }
 
-            // Step 2 — save metadata to backend first (before minting)
+            // save metadata to backend before minting
             setStep('saving')
             const royaltyBasisPoints = BigInt(Math.round(parseFloat(royaltyPercent) * 100))
-            const minPriceWei = parseEther(minPrice)
 
             const saveRes = await fetch(`${BACKEND_URL}/api/products`, {
                 method: 'POST',
@@ -77,7 +72,6 @@ export default function RegisterPage() {
                     imageUrl,
                     creatorAddress: address,
                     royaltyBasisPoints: Number(royaltyBasisPoints),
-                    minPrice: minPriceWei.toString(),
                 }),
             })
             if (!saveRes.ok) {
@@ -85,7 +79,7 @@ export default function RegisterPage() {
                 throw new Error(errData.error || 'Failed to save product metadata')
             }
 
-            // Step 3 — mint NFT on-chain
+            // mint NFT on-chain
             setStep('minting')
             const { sepolia } = await import('viem/chains')
 
@@ -93,14 +87,13 @@ export default function RegisterPage() {
                 address: CONTRACT_ADDRESS,
                 abi: CONTRACT_ABI,
                 functionName: 'registerProduct',
-                args: [name, description, nfcUid, royaltyBasisPoints, minPriceWei],
+                args: [name, description, nfcUid, royaltyBasisPoints],
                 chain: sepolia,
                 account: address,
             })
 
-            // Step 4 — wait for confirmation and extract tokenId
+            // wait for confirmation and extract tokenId
             const receipt = await waitForReceipt(hash)
-            console.log('Receipt logs:', receipt.logs)
             let tokenId = null
             for (const log of receipt.logs as any[]) {
                 try {
@@ -116,9 +109,7 @@ export default function RegisterPage() {
                 } catch { }
             }
 
-            console.log('Minted tokenId:', tokenId)
-
-            // Step 5 — update backend record with tokenId
+            // patch backend record with tokenId
             if (tokenId !== null) {
                 await fetch(`${BACKEND_URL}/api/products/nfc/${nfcUid}`, {
                     method: 'PATCH',
@@ -137,7 +128,6 @@ export default function RegisterPage() {
         }
     }
 
-    // Helper to wait for transaction receipt using viem directly
     const waitForReceipt = async (hash: `0x${string}`) => {
         const { createPublicClient, http } = await import('viem')
         const { sepolia } = await import('viem/chains')
@@ -151,8 +141,8 @@ export default function RegisterPage() {
     const stepLabels: Record<string, string> = {
         idle: '',
         uploading: 'Uploading image...',
-        minting: 'Minting NFT on Sepolia...',
         saving: 'Saving metadata...',
+        minting: 'Minting NFT on Sepolia...',
         done: 'Product registered successfully',
         error: 'Something went wrong',
     }
@@ -161,7 +151,6 @@ export default function RegisterPage() {
         <div className="min-h-screen pt-14">
             <div className="max-w-2xl mx-auto px-6 py-12">
 
-                {/* Header */}
                 <div className="mb-10">
                     <p className="font-mono text-[10px] tracking-[0.3em] text-muted-foreground mb-2">
                         DIGITAL PASSPORT
@@ -171,7 +160,6 @@ export default function RegisterPage() {
                     </h1>
                 </div>
 
-                {/* Wallet check */}
                 {!isConnected && (
                     <div className="border border-border px-6 py-4 mb-6">
                         <p className="font-mono text-[11px] text-muted-foreground">
@@ -182,7 +170,6 @@ export default function RegisterPage() {
 
                 <div className="space-y-px">
 
-                    {/* Product name */}
                     <div className="border border-border p-4">
                         <label className="font-mono text-[10px] tracking-widest text-muted-foreground block mb-2">
                             PRODUCT NAME
@@ -196,7 +183,6 @@ export default function RegisterPage() {
                         />
                     </div>
 
-                    {/* Description */}
                     <div className="border border-border p-4">
                         <label className="font-mono text-[10px] tracking-widest text-muted-foreground block mb-2">
                             DESCRIPTION
@@ -210,7 +196,6 @@ export default function RegisterPage() {
                         />
                     </div>
 
-                    {/* NFC UID */}
                     <div className="border border-border p-4">
                         <label className="font-mono text-[10px] tracking-widest text-muted-foreground block mb-2">
                             NFC TAG UID
@@ -224,7 +209,6 @@ export default function RegisterPage() {
                         />
                     </div>
 
-                    {/* Royalty % */}
                     <div className="border border-border p-4">
                         <label className="font-mono text-[10px] tracking-widest text-muted-foreground block mb-2">
                             ROYALTY PERCENTAGE
@@ -236,37 +220,17 @@ export default function RegisterPage() {
                                 onChange={e => setRoyaltyPercent(e.target.value)}
                                 placeholder="5"
                                 min="0"
-                                max="50"
+                                max="10"
                                 step="0.5"
                                 className="w-full bg-transparent text-foreground font-mono text-sm outline-none placeholder:text-muted-foreground/40"
                             />
                             <span className="font-mono text-[11px] text-muted-foreground">%</span>
                         </div>
                         <p className="font-mono text-[10px] text-muted-foreground/60 mt-1">
-                            Max 50%
+                            Max 10%
                         </p>
                     </div>
 
-                    {/* Min price */}
-                    <div className="border border-border p-4">
-                        <label className="font-mono text-[10px] tracking-widest text-muted-foreground block mb-2">
-                            MINIMUM RESALE PRICE
-                        </label>
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="number"
-                                value={minPrice}
-                                onChange={e => setMinPrice(e.target.value)}
-                                placeholder="0.1"
-                                min="0"
-                                step="0.01"
-                                className="w-full bg-transparent text-foreground font-mono text-sm outline-none placeholder:text-muted-foreground/40"
-                            />
-                            <span className="font-mono text-[11px] text-muted-foreground">ETH</span>
-                        </div>
-                    </div>
-
-                    {/* Image upload */}
                     <div className="border border-border p-4">
                         <label className="font-mono text-[10px] tracking-widest text-muted-foreground block mb-3">
                             PRODUCT IMAGE
@@ -283,11 +247,7 @@ export default function RegisterPage() {
                             className="cursor-pointer border border-dashed border-border flex items-center justify-center p-8 hover:border-primary/40 transition-colors"
                         >
                             {imagePreview ? (
-                                <img
-                                    src={imagePreview}
-                                    alt="Preview"
-                                    className="max-h-48 object-contain"
-                                />
+                                <img src={imagePreview} alt="Preview" className="max-h-48 object-contain" />
                             ) : (
                                 <p className="font-mono text-[10px] text-muted-foreground tracking-widest">
                                     CLICK TO UPLOAD IMAGE
@@ -298,23 +258,18 @@ export default function RegisterPage() {
 
                 </div>
 
-                {/* Error */}
                 {error && (
                     <div className="border border-destructive/40 px-4 py-3 mt-4">
                         <p className="font-mono text-[11px] text-destructive">{error}</p>
                     </div>
                 )}
 
-                {/* Status */}
                 {step !== 'idle' && step !== 'error' && (
                     <div className="border border-primary/20 px-4 py-3 mt-4 bg-primary/5">
-                        <p className="font-mono text-[11px] text-primary">
-                            {stepLabels[step]}
-                        </p>
+                        <p className="font-mono text-[11px] text-primary">{stepLabels[step]}</p>
                     </div>
                 )}
 
-                {/* Submit button */}
                 <button
                     onClick={handleSubmit}
                     disabled={step !== 'idle' && step !== 'error'}
