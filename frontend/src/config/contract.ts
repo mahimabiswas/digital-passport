@@ -1,4 +1,4 @@
-export const CONTRACT_ADDRESS = '0xb80dF6a3c2AA5Eed80F54D9eE2A2Fa0bA214dA15' as const
+export const CONTRACT_ADDRESS = '0xD3966AD1E6A52Bdf23E2E2834a4e3b16f677bB5C' as const
 
 export const CONTRACT_ABI = [
     {
@@ -12,11 +12,12 @@ export const CONTRACT_ABI = [
                 components: [
                     { name: 'tokenId', type: 'uint256' },
                     { name: 'creator', type: 'address' },
+                    { name: 'previousOwner', type: 'address' },
+                    { name: 'previousOwnerReceivedAt', type: 'uint256' },
                     { name: 'name', type: 'string' },
                     { name: 'description', type: 'string' },
                     { name: 'nfcUid', type: 'string' },
                     { name: 'royaltyBasisPoints', type: 'uint256' },
-                    { name: 'minPrice', type: 'uint256' },
                     { name: 'exists', type: 'bool' },
                 ],
             },
@@ -48,28 +49,32 @@ export const CONTRACT_ABI = [
                     { name: 'seller', type: 'address' },
                     { name: 'buyer', type: 'address' },
                     { name: 'royaltyDue', type: 'uint256' },
+                    { name: 'escrowAmount', type: 'uint256' },
+                    { name: 'depositedAt', type: 'uint256' },
                     { name: 'active', type: 'bool' },
+                    { name: 'escrowDeposited', type: 'bool' },
                 ],
             },
         ],
     },
     {
-        name: 'OwnershipTransferred',
-        type: 'event',
-        inputs: [
-            { name: 'tokenId', type: 'uint256', indexed: true },
-            { name: 'from', type: 'address', indexed: true },
-            { name: 'to', type: 'address', indexed: true },
-            { name: 'royaltyPaid', type: 'uint256', indexed: false },
-        ],
-    },
-    {
-        name: 'Transfer',
-        type: 'event',
-        inputs: [
-            { name: 'from', type: 'address', indexed: true },
-            { name: 'to', type: 'address', indexed: true },
-            { name: 'tokenId', type: 'uint256', indexed: true },
+        name: 'getPendingTransfer',
+        type: 'function',
+        stateMutability: 'view',
+        inputs: [{ name: 'tokenId', type: 'uint256' }],
+        outputs: [
+            {
+                type: 'tuple',
+                components: [
+                    { name: 'seller', type: 'address' },
+                    { name: 'buyer', type: 'address' },
+                    { name: 'royaltyDue', type: 'uint256' },
+                    { name: 'escrowAmount', type: 'uint256' },
+                    { name: 'depositedAt', type: 'uint256' },
+                    { name: 'active', type: 'bool' },
+                    { name: 'escrowDeposited', type: 'bool' },
+                ],
+            },
         ],
     },
     {
@@ -81,18 +86,34 @@ export const CONTRACT_ABI = [
             { name: 'description', type: 'string' },
             { name: 'nfcUid', type: 'string' },
             { name: 'royaltyBasisPoints', type: 'uint256' },
-            { name: 'minPrice', type: 'uint256' },
         ],
         outputs: [{ name: '', type: 'uint256' }],
     },
     {
-        name: 'ProductRegistered',
+        name: 'TransferInitiated',
         type: 'event',
         inputs: [
             { name: 'tokenId', type: 'uint256', indexed: true },
-            { name: 'creator', type: 'address', indexed: true },
-            { name: 'name', type: 'string', indexed: false },
-            { name: 'nfcUid', type: 'string', indexed: false },
+            { name: 'seller', type: 'address', indexed: true },
+            { name: 'buyer', type: 'address', indexed: true },
+            { name: 'royaltyDue', type: 'uint256', indexed: false },
+        ],
+    },
+    {
+        name: 'EscrowDeposited',
+        type: 'event',
+        inputs: [
+            { name: 'tokenId', type: 'uint256', indexed: true },
+            { name: 'buyer', type: 'address', indexed: true },
+            { name: 'amount', type: 'uint256', indexed: false },
+        ],
+    },
+    {
+        name: 'TransferCancelled',
+        type: 'event',
+        inputs: [
+            { name: 'tokenId', type: 'uint256', indexed: true },
+            { name: 'cancelledBy', type: 'address', indexed: true },
         ],
     },
     {
@@ -107,15 +128,20 @@ export const CONTRACT_ABI = [
         outputs: [],
     },
     {
-        name: 'completeTransfer',
+        name: 'depositEscrow',
         type: 'function',
         stateMutability: 'payable',
         inputs: [
             { name: 'tokenId', type: 'uint256' },
-            { name: '_pA', type: 'uint256[2]' },
-            { name: '_pB', type: 'uint256[2][2]' },
-            { name: '_pC', type: 'uint256[2]' },
-            { name: '_pubSignals', type: 'uint256[3]' },
+        ],
+        outputs: [],
+    },
+    {
+        name: 'confirmReceipt',
+        type: 'function',
+        stateMutability: 'nonpayable',
+        inputs: [
+            { name: 'tokenId', type: 'uint256' },
         ],
         outputs: [],
     },
@@ -127,5 +153,35 @@ export const CONTRACT_ABI = [
             { name: 'tokenId', type: 'uint256' },
         ],
         outputs: [],
+    },
+    {
+        name: 'ProductRegistered',
+        type: 'event',
+        inputs: [
+            { name: 'tokenId', type: 'uint256', indexed: true },
+            { name: 'creator', type: 'address', indexed: true },
+            { name: 'name', type: 'string', indexed: false },
+            { name: 'nfcUid', type: 'string', indexed: false },
+        ],
+    },
+    {
+        name: 'OwnershipTransferred',
+        type: 'event',
+        inputs: [
+            { name: 'tokenId', type: 'uint256', indexed: true },
+            { name: 'from', type: 'address', indexed: true },
+            { name: 'to', type: 'address', indexed: true },
+            { name: 'creatorShare', type: 'uint256', indexed: false },
+            { name: 'previousOwnerShare', type: 'uint256', indexed: false },
+        ],
+    },
+    {
+        name: 'Transfer',
+        type: 'event',
+        inputs: [
+            { name: 'from', type: 'address', indexed: true },
+            { name: 'to', type: 'address', indexed: true },
+            { name: 'tokenId', type: 'uint256', indexed: true },
+        ],
     },
 ] as const
