@@ -3,8 +3,7 @@ import { useReadContract } from 'wagmi'
 import { useState, useEffect } from 'react'
 import { CONTRACT_ADDRESS, CONTRACT_ABI } from '../config/contract'
 import { useAccount, useWriteContract } from 'wagmi'
-import { parseEther, createPublicClient, http } from 'viem'
-import { sepolia } from 'viem/chains'
+import { parseEther } from 'viem'
 
 export default function PassportPage() {
     const { nfcUid } = useParams()
@@ -94,18 +93,31 @@ export default function PassportPage() {
         const priceWei = parseEther(salePrice)
         return (priceWei * basisPoints) / 10000n
     }
+    const waitForReceipt = async (hash: `0x${string}`) => {
+        const { createPublicClient, http } = await import('viem')
+        const { sepolia } = await import('viem/chains')
+        const client = createPublicClient({
+            chain: sepolia,
+            transport: http(import.meta.env.VITE_RPC_URL),
+        })
+        return client.waitForTransactionReceipt({ hash })
+    }
+    const sendTx = async (args: any) => {
+            const hash = await writeContractAsync(args)
+            await waitForReceipt(hash)
+            await new Promise(r => setTimeout(r, 1500))
+            return hash
+        }
 
     const handleInitiateTransfer = async () => {
         if (!buyerAddress || !product || tokenId === undefined) return
         if (!isPrimarySale && !salePrice) return
         setTransferError(null)
-
         try {
             setTransferStep('confirming')
             const royalty = royaltyDue(salePrice, product.royaltyBasisPoints)
             const { sepolia: sepoliaChain } = await import('viem/chains')
-
-            await writeContractAsync({
+            await sendTx({
                 address: CONTRACT_ADDRESS,
                 abi: CONTRACT_ABI,
                 functionName: 'initiateTransfer',
@@ -113,7 +125,6 @@ export default function PassportPage() {
                 chain: sepoliaChain,
                 account: address,
             })
-
             setTransferStep('done')
             setShowInitiateForm(false)
             window.location.reload()
@@ -126,12 +137,10 @@ export default function PassportPage() {
     const handleDepositEscrow = async () => {
         if (!pendingTransfer || tokenId === undefined) return
         setTransferError(null)
-
         try {
             setTransferStep('confirming')
             const { sepolia: sepoliaChain } = await import('viem/chains')
-
-            await writeContractAsync({
+            await sendTx({
                 address: CONTRACT_ADDRESS,
                 abi: CONTRACT_ABI,
                 functionName: 'depositEscrow',
@@ -140,7 +149,6 @@ export default function PassportPage() {
                 chain: sepoliaChain,
                 account: address,
             })
-
             setTransferStep('idle')
             refetchPending()
         } catch (err: any) {
@@ -152,12 +160,10 @@ export default function PassportPage() {
     const handleConfirmReceipt = async () => {
         if (tokenId === undefined) return
         setTransferError(null)
-
         try {
             setTransferStep('confirming')
             const { sepolia: sepoliaChain } = await import('viem/chains')
-
-            await writeContractAsync({
+            await sendTx({
                 address: CONTRACT_ADDRESS,
                 abi: CONTRACT_ABI,
                 functionName: 'confirmReceipt',
@@ -165,7 +171,6 @@ export default function PassportPage() {
                 chain: sepoliaChain,
                 account: address,
             })
-
             setTransferStep('done')
             window.location.reload()
         } catch (err: any) {
@@ -178,7 +183,7 @@ export default function PassportPage() {
         if (tokenId === undefined) return
         try {
             const { sepolia: sepoliaChain } = await import('viem/chains')
-            await writeContractAsync({
+            await sendTx({
                 address: CONTRACT_ADDRESS,
                 abi: CONTRACT_ABI,
                 functionName: 'cancelTransfer',
