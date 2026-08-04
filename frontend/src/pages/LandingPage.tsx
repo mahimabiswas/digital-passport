@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ConnectButton } from '@rainbow-me/rainbowkit'
+// import { ConnectButton } from '@rainbow-me/rainbowkit'
 
 export default function LandingPage() {
   return (
