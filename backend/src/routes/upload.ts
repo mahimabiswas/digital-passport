@@ -1,20 +1,16 @@
 import { Router, Request, Response } from 'express'
 import multer from 'multer'
-import path from 'path'
+import { v2 as cloudinary } from 'cloudinary'
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+})
 
 const router = Router()
 
-// Configure storage
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, '../uploads'))
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9)
-    const ext = path.extname(file.originalname)
-    cb(null, uniqueSuffix + ext)
-  },
-})
+const storage = multer.memoryStorage()
 
 const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
   const allowed = ['image/jpeg', 'image/png', 'image/webp']
@@ -28,17 +24,30 @@ const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCa
 const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
+  limits: { fileSize: 5 * 1024 * 1024 },
 })
 
-router.post('/', upload.single('image'), (req: Request, res: Response) => {
+router.post('/', upload.single('image'), async (req: Request, res: Response) => {
   if (!req.file) {
     res.status(400).json({ error: 'No file uploaded' })
     return
   }
 
-  const imageUrl = `http://localhost:3001/uploads/${req.file.filename}`
-  res.status(201).json({ imageUrl })
+  try {
+    const result = await new Promise<any>((resolve, reject) => {
+      cloudinary.uploader.upload_stream(
+        { folder: 'digital-passport' },
+        (error, result) => {
+          if (error) reject(error)
+          else resolve(result)
+        }
+      ).end(req.file!.buffer)
+    })
+
+    res.status(201).json({ imageUrl: result.secure_url })
+  } catch (err: any) {
+    res.status(500).json({ error: 'Image upload failed', details: err.message })
+  }
 })
 
 export default router
