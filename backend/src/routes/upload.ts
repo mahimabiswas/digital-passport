@@ -37,7 +37,7 @@ router.post('/', upload.single('image'), async (req: Request, res: Response) => 
     const result = await new Promise<any>((resolve, reject) => {
       cloudinary.uploader.upload_stream(
         { folder: 'digital-passport' },
-        (error, result) => {
+        (error: any, result: any) => {
           if (error) reject(error)
           else resolve(result)
         }
