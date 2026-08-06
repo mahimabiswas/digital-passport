@@ -29,7 +29,8 @@ export default function PassportPage() {
     const [salePrice, setSalePrice] = useState('')
     const [transferStep, setTransferStep] = useState<'idle' | 'confirming' | 'done' | 'error'>('idle')
     const [transferError, setTransferError] = useState<string | null>(null)
-
+    const [nfcVerified, setNfcVerified] = useState(false)
+    const [nfcError, setNfcError] = useState<string | null>(null)
     const { data: tokenId } = useReadContract({
         address: CONTRACT_ADDRESS,
         abi: CONTRACT_ABI,
@@ -77,7 +78,25 @@ export default function PassportPage() {
             .then(data => setHistory(data))
             .catch(err => console.error('Failed to fetch history:', err))
     }, [tokenId])
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search)
+        const picc = params.get('picc')
+        const enc = params.get('enc')
+        const cmac = params.get('cmac')
 
+        if (!picc || !enc || !cmac) return
+
+        fetch(`${BACKEND_URL}/api/verify-nfc?picc=${picc}&enc=${enc}&cmac=${cmac}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.verified) {
+                    setNfcVerified(true)
+                } else {
+                    setNfcError(data.error || 'NFC verification failed')
+                }
+            })
+            .catch(() => setNfcError('NFC verification failed'))
+    }, [])
     if (!product) return (
         <div className="min-h-screen pt-14 flex items-center justify-center">
             <p className="font-mono text-[11px] tracking-widest text-muted-foreground animate-pulse">
@@ -465,12 +484,17 @@ export default function PassportPage() {
                                             {transferError && (
                                                 <p className="font-mono text-[10px] text-destructive">{transferError}</p>
                                             )}
+                                            {!nfcVerified && (
+                                                <p className="font-mono text-[10px] text-amber-400">
+                                                    {nfcError ? `NFC ERROR: ${nfcError}` : 'TAP THE PHYSICAL ITEM\'S NFC TAG TO UNLOCK TRANSFER'}
+                                                </p>
+                                            )}
                                             <button
                                                 onClick={handleConfirmReceipt}
                                                 disabled={transferStep === 'confirming'}
                                                 className="w-full py-3 bg-primary text-primary-foreground font-mono text-[11px] tracking-widest hover:bg-primary/90 disabled:opacity-50 transition-colors"
                                             >
-                                                {transferStep === 'confirming' ? 'CONFIRMING...' : 'CONFIRM RECEIPT & COMPLETE TRANSFER'}
+                                                {transferStep === 'confirming' ? 'CONFIRMING...' : !nfcVerified ? 'VERIFY NFC TAG' : 'CONFIRM RECEIPT & COMPLETE TRANSFER'}
                                             </button>
                                         </>
                                     ) : !pendingTransfer.escrowDeposited ? (
@@ -504,7 +528,7 @@ export default function PassportPage() {
                                                 disabled={transferStep === 'confirming'}
                                                 className="w-full py-3 bg-primary text-primary-foreground font-mono text-[11px] tracking-widest hover:bg-primary/90 disabled:opacity-50 transition-colors"
                                             >
-                                                {transferStep === 'confirming' ? 'CONFIRMING...' : 'CONFIRM RECEIPT & COMPLETE TRANSFER'}
+                                                {transferStep === 'confirming' ? 'CONFIRMING...' : !nfcVerified ? 'VERIFY NFC TAG' : 'CONFIRM RECEIPT & COMPLETE TRANSFER'}
                                             </button>
                                         </>
                                     )}

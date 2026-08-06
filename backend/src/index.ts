@@ -6,6 +6,7 @@ import productRoutes from "./routes/products";
 import historyRoutes from './routes/history'
 import path from 'path'
 import uploadRoutes from './routes/upload'
+import verifyNfcRoutes from './routes/verifyNfc'
 
 dotenv.config();
 
@@ -20,6 +21,7 @@ app.use(express.json());
 app.use("/api/products", productRoutes);
 app.use("/api/history", historyRoutes);
 app.use('/api/upload', uploadRoutes)
+app.use('/api/verify-nfc', verifyNfcRoutes)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 // Health check
 app.get("/health", (req, res) => {
