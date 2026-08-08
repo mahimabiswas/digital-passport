@@ -85,25 +85,36 @@ export default function PassportPage() {
         const cmac = params.get('cmac')
         const verified = params.get('verified')
 
+        console.log('NFC params:', { picc, enc, cmac, verified })
+
         if (verified === 'true') {
             setNfcVerified(true)
             return
         }
 
-        if (!picc || !enc || !cmac) return
+        if (!picc || !enc || !cmac) {
+            console.log('No NFC params, skipping')
+            return
+        }
+
+        console.log('Calling verify-nfc...')
 
         fetch(`${BACKEND_URL}/api/verify-nfc?picc=${picc}&enc=${enc}&cmac=${cmac}`)
             .then(res => res.json())
             .then(data => {
+                console.log('Verify response:', data)
                 if (data.verified) {
-                    window.location.replace(
-                        `${window.location.origin}/passport/${data.uid}?verified=true`
-                    )
+                    const redirectUrl = `${window.location.origin}/passport/${data.uid}?verified=true`
+                    console.log('Redirecting to:', redirectUrl)
+                    window.location.replace(redirectUrl)
                 } else {
                     setNfcError(data.error || 'NFC verification failed')
                 }
             })
-            .catch(() => setNfcError('NFC verification failed'))
+            .catch(err => {
+                console.error('Verify error:', err)
+                setNfcError('NFC verification failed')
+            })
     }, [])
     if (!product) return (
         <div className="min-h-screen pt-14 flex items-center justify-center">
