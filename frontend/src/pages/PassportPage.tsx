@@ -83,6 +83,12 @@ export default function PassportPage() {
         const picc = params.get('picc')
         const enc = params.get('enc')
         const cmac = params.get('cmac')
+        const verified = params.get('verified')
+
+        if (verified === 'true') {
+            setNfcVerified(true)
+            return
+        }
 
         if (!picc || !enc || !cmac) return
 
@@ -90,7 +96,9 @@ export default function PassportPage() {
             .then(res => res.json())
             .then(data => {
                 if (data.verified) {
-                    setNfcVerified(true)
+                    window.location.replace(
+                        `${window.location.origin}/passport/${data.uid}?verified=true`
+                    )
                 } else {
                     setNfcError(data.error || 'NFC verification failed')
                 }
@@ -122,11 +130,11 @@ export default function PassportPage() {
         return client.waitForTransactionReceipt({ hash })
     }
     const sendTx = async (args: any) => {
-            const hash = await writeContractAsync(args)
-            await waitForReceipt(hash)
-            await new Promise(r => setTimeout(r, 1500))
-            return hash
-        }
+        const hash = await writeContractAsync(args)
+        await waitForReceipt(hash)
+        await new Promise(r => setTimeout(r, 1500))
+        return hash
+    }
 
     const handleInitiateTransfer = async () => {
         if (!buyerAddress || !product || tokenId === undefined) return
