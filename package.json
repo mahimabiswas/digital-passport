@@ -30,6 +30,7 @@
     "circomlib": "^2.0.5",
     "cloudinary": "^2.10.0",
     "dotenv": "^17.4.2",
+    "hardhat-slither": "^1.0.4",
     "snarkjs": "^0.7.6"
   }
 }

@@ -10,8 +10,8 @@ contract DigitalPassport is ERC721 {
         address creator;
         address previousOwner;
         uint256 previousOwnerReceivedAt;
-        string name;
-        string description;
+        string productName;
+        string productDescription;
         string nfcUid;
         uint256 royaltyBasisPoints;
         bool exists;
@@ -21,6 +21,7 @@ contract DigitalPassport is ERC721 {
         address seller;
         address buyer;
         uint256 royaltyDue;
+        uint256 salePrice;
         uint256 escrowAmount;
         uint256 depositedAt;
         bool active;
@@ -35,7 +36,7 @@ contract DigitalPassport is ERC721 {
     event ProductRegistered(
         uint256 indexed tokenId,
         address indexed creator,
-        string name,
+        string productName,
         string nfcUid
     );
 
@@ -57,7 +58,8 @@ contract DigitalPassport is ERC721 {
         address indexed from,
         address indexed to,
         uint256 creatorShare,
-        uint256 previousOwnerShare
+        uint256 previousOwnerShare,
+        uint256 salePrice
     );
 
     event TransferCancelled(
@@ -70,8 +72,8 @@ contract DigitalPassport is ERC721 {
     // REGISTER
 
     function registerProduct(
-        string memory name,
-        string memory description,
+        string memory productName,
+        string memory productDescription,
         string memory nfcUid,
         uint256 royaltyBasisPoints
     ) external returns (uint256) {
@@ -85,8 +87,8 @@ contract DigitalPassport is ERC721 {
             creator: msg.sender,
             previousOwner: address(0),
             previousOwnerReceivedAt: block.timestamp,
-            name: name,
-            description: description,
+            productName: productName,
+            productDescription: productDescription,
             nfcUid: nfcUid,
             royaltyBasisPoints: royaltyBasisPoints,
             exists: true
@@ -95,7 +97,7 @@ contract DigitalPassport is ERC721 {
         nfcToToken[nfcUid] = tokenId;
         _safeMint(msg.sender, tokenId);
 
-        emit ProductRegistered(tokenId, msg.sender, name, nfcUid);
+        emit ProductRegistered(tokenId, msg.sender, productName, nfcUid);
         return tokenId;
     }
 
@@ -109,7 +111,8 @@ contract DigitalPassport is ERC721 {
     function initiateTransfer(
         uint256 tokenId,
         address buyer,
-        uint256 royaltyAmount
+        uint256 royaltyAmount,
+        uint256 salePrice
     ) external {
         require(products[tokenId].exists, "Product does not exist");
         require(ownerOf(tokenId) == msg.sender, "Not token owner");
@@ -121,14 +124,17 @@ contract DigitalPassport is ERC721 {
 
         if (isPrimarySale) {
             require(royaltyAmount == 0, "No royalty on primary sale");
-        } else {
-            require(royaltyAmount > 0, "Royalty required for secondary sale");
         }
-
+        else {
+            require(royaltyAmount > 0, "Royalty required for secondary sale");
+            uint256 expectedRoyalty = (salePrice * products[tokenId].royaltyBasisPoints) / 10000;
+            require(royaltyAmount >= expectedRoyalty, "Royalty below required amount");
+        }
         pendingTransfers[tokenId] = PendingTransfer({
             seller: msg.sender,
             buyer: buyer,
             royaltyDue: royaltyAmount,
+            salePrice: salePrice,
             escrowAmount: 0,
             depositedAt: 0,
             active: true,
@@ -172,20 +178,24 @@ contract DigitalPassport is ERC721 {
         if (!isPrimarySale) {
             require(pending.escrowDeposited, "Escrow not deposited yet");
         }
-
         address seller = pending.seller;
         address creator = product.creator;
         address previousOwner = product.previousOwner;
         uint256 royaltyPaid = pending.escrowAmount;
+        uint256 storedReceivedAt = product.previousOwnerReceivedAt;
+        uint256 salePriceRecorded = pending.salePrice;
 
         // Clear state BEFORE external calls — prevents reentrancy
         pending.active = false;
         pending.escrowDeposited = false;
         pending.escrowAmount = 0;
 
+        // Update ownership tracking BEFORE external calls
+        product.previousOwner = seller;
+        product.previousOwnerReceivedAt = block.timestamp;
+
         if (!isPrimarySale) {
-            // Calculate time-weighted split
-            uint256 timeHeld = block.timestamp - product.previousOwnerReceivedAt;
+            uint256 timeHeld = block.timestamp - storedReceivedAt;
             uint256 previousOwnerBps = _getPreviousOwnerBps(timeHeld);
 
             uint256 previousOwnerShare = (royaltyPaid * previousOwnerBps) / 10000;
@@ -214,16 +224,13 @@ contract DigitalPassport is ERC721 {
                 seller,
                 msg.sender,
                 creatorShare,
-                previousOwnerShare
+                previousOwnerShare,
+                salePriceRecorded
             );
         } else {
             // Primary sale — no royalty paid
-            emit OwnershipTransferred(tokenId, seller, msg.sender, 0, 0);
+            emit OwnershipTransferred(tokenId, seller, msg.sender, 0, 0, salePriceRecorded);
         }
-
-        // Update ownership tracking for next transfer
-        product.previousOwner = seller;
-        product.previousOwnerReceivedAt = block.timestamp;
 
         // Transfer NFT to buyer
         _transfer(seller, msg.sender, tokenId);

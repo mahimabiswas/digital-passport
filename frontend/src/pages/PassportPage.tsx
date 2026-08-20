@@ -139,7 +139,7 @@ export default function PassportPage() {
 
     const handleInitiateTransfer = async () => {
         if (!buyerAddress || !product || tokenId === undefined) return
-        if (!isPrimarySale && !salePrice) return
+        if (!salePrice) return
         setTransferError(null)
         try {
             setTransferStep('confirming')
@@ -149,7 +149,7 @@ export default function PassportPage() {
                 address: CONTRACT_ADDRESS,
                 abi: CONTRACT_ABI,
                 functionName: 'initiateTransfer',
-                args: [tokenId, buyerAddress as `0x${string}`, royalty],
+                args: [tokenId, buyerAddress as `0x${string}`, royalty, parseEther(salePrice)],
                 chain: sepoliaChain,
                 account: address,
             })
@@ -237,7 +237,7 @@ export default function PassportPage() {
                         {metadata?.imageUrl ? (
                             <img
                                 src={metadata.imageUrl}
-                                alt={product.name}
+                                alt={product.productName}
                                 className="w-full h-full object-cover"
                             />
                         ) : (
@@ -273,7 +273,7 @@ export default function PassportPage() {
                                 DIGITAL PASSPORT
                             </p>
                             <h1 className="font-display font-black text-5xl tracking-tight leading-none uppercase">
-                                {product.name}
+                                {product.productName}
                             </h1>
                         </div>
 
@@ -409,27 +409,24 @@ export default function PassportPage() {
                                             className="w-full bg-transparent border border-border px-3 py-2 font-mono text-sm text-foreground outline-none focus:border-primary/50"
                                         />
                                     </div>
-
-                                    {!isPrimarySale && (
-                                        <div>
-                                            <label className="font-mono text-[10px] tracking-widest text-muted-foreground block mb-2">
-                                                AGREED SALE PRICE (ETH)
-                                            </label>
-                                            <input
-                                                type="number"
-                                                value={salePrice}
-                                                onChange={e => setSalePrice(e.target.value)}
-                                                placeholder="0.5"
-                                                step="0.01"
-                                                className="w-full bg-transparent border border-border px-3 py-2 font-mono text-sm text-foreground outline-none focus:border-primary/50"
-                                            />
-                                            {salePrice && (
-                                                <p className="font-mono text-[10px] text-muted-foreground mt-1">
-                                                    ROYALTY DUE: {Number(royaltyDue(salePrice, product.royaltyBasisPoints)) / 1e18} ETH
-                                                </p>
-                                            )}
-                                        </div>
-                                    )}
+                                    <div>
+                                        <label className="font-mono text-[10px] tracking-widest text-muted-foreground block mb-2">
+                                            AGREED SALE PRICE (ETH)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={salePrice}
+                                            onChange={e => setSalePrice(e.target.value)}
+                                            placeholder="0.5"
+                                            step="0.01"
+                                            className="w-full bg-transparent border border-border px-3 py-2 font-mono text-sm text-foreground outline-none focus:border-primary/50"
+                                        />
+                                        {salePrice && !isPrimarySale && (
+                                            <p className="font-mono text-[10px] text-muted-foreground mt-1">
+                                                ROYALTY DUE: {Number(royaltyDue(salePrice, product.royaltyBasisPoints)) / 1e18} ETH
+                                            </p>
+                                        )}
+                                    </div>
 
                                     {isPrimarySale && (
                                         <p className="font-mono text-[10px] text-muted-foreground/60">
@@ -500,7 +497,7 @@ export default function PassportPage() {
                                             )}
                                             <button
                                                 onClick={handleConfirmReceipt}
-                                                disabled={transferStep === 'confirming'}
+                                                disabled={transferStep === 'confirming'|| !nfcVerified}
                                                 className="w-full py-3 bg-primary text-primary-foreground font-mono text-[11px] tracking-widest hover:bg-primary/90 disabled:opacity-50 transition-colors"
                                             >
                                                 {transferStep === 'confirming' ? 'CONFIRMING...' : !nfcVerified ? 'VERIFY NFC TAG' : 'CONFIRM RECEIPT & COMPLETE TRANSFER'}
@@ -534,7 +531,7 @@ export default function PassportPage() {
                                             )}
                                             <button
                                                 onClick={handleConfirmReceipt}
-                                                disabled={transferStep === 'confirming'}
+                                                disabled={transferStep === 'confirming' || !nfcVerified}
                                                 className="w-full py-3 bg-primary text-primary-foreground font-mono text-[11px] tracking-widest hover:bg-primary/90 disabled:opacity-50 transition-colors"
                                             >
                                                 {transferStep === 'confirming' ? 'CONFIRMING...' : !nfcVerified ? 'VERIFY NFC TAG' : 'CONFIRM RECEIPT & COMPLETE TRANSFER'}

@@ -1,4 +1,4 @@
-export const CONTRACT_ADDRESS = '0xD3966AD1E6A52Bdf23E2E2834a4e3b16f677bB5C' as const
+export const CONTRACT_ADDRESS = '0xC7e35CF1074a4d577F0b78bd44FF7E340D7276C8' as const
 
 export const CONTRACT_ABI = [
     {
@@ -14,7 +14,7 @@ export const CONTRACT_ABI = [
                     { name: 'creator', type: 'address' },
                     { name: 'previousOwner', type: 'address' },
                     { name: 'previousOwnerReceivedAt', type: 'uint256' },
-                    { name: 'name', type: 'string' },
+                    { name: 'productName', type: 'string' },
                     { name: 'description', type: 'string' },
                     { name: 'nfcUid', type: 'string' },
                     { name: 'royaltyBasisPoints', type: 'uint256' },
@@ -49,6 +49,7 @@ export const CONTRACT_ABI = [
                     { name: 'seller', type: 'address' },
                     { name: 'buyer', type: 'address' },
                     { name: 'royaltyDue', type: 'uint256' },
+                    { name: 'salePrice', type: 'uint256' },
                     { name: 'escrowAmount', type: 'uint256' },
                     { name: 'depositedAt', type: 'uint256' },
                     { name: 'active', type: 'bool' },
@@ -82,8 +83,8 @@ export const CONTRACT_ABI = [
         type: 'function',
         stateMutability: 'nonpayable',
         inputs: [
-            { name: 'name', type: 'string' },
-            { name: 'description', type: 'string' },
+            { name: 'productName', type: 'string' },
+            { name: 'productDescription', type: 'string' },
             { name: 'nfcUid', type: 'string' },
             { name: 'royaltyBasisPoints', type: 'uint256' },
         ],
@@ -124,6 +125,7 @@ export const CONTRACT_ABI = [
             { name: 'tokenId', type: 'uint256' },
             { name: 'buyer', type: 'address' },
             { name: 'royaltyAmount', type: 'uint256' },
+            { name: 'salePrice', type: 'uint256' },
         ],
         outputs: [],
     },
@@ -160,7 +162,7 @@ export const CONTRACT_ABI = [
         inputs: [
             { name: 'tokenId', type: 'uint256', indexed: true },
             { name: 'creator', type: 'address', indexed: true },
-            { name: 'name', type: 'string', indexed: false },
+            { name: 'productName', type: 'string', indexed: false },
             { name: 'nfcUid', type: 'string', indexed: false },
         ],
     },
@@ -173,6 +175,7 @@ export const CONTRACT_ABI = [
             { name: 'to', type: 'address', indexed: true },
             { name: 'creatorShare', type: 'uint256', indexed: false },
             { name: 'previousOwnerShare', type: 'uint256', indexed: false },
+            { name: 'salePrice', type: 'uint256', indexed: false },
         ],
     },
     {

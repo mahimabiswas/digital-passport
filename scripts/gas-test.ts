@@ -3,7 +3,7 @@ dotenv.config();
 import hre from "hardhat";
 import * as snarkjs from "snarkjs";
 
-const CONTRACT_ADDRESS = '0xD3966AD1E6A52Bdf23E2E2834a4e3b16f677bB5C';
+const CONTRACT_ADDRESS = '0xC7e35CF1074a4d577F0b78bd44FF7E340D7276C8';
 
 async function main() {
   const { ethers } = await import("ethers");
