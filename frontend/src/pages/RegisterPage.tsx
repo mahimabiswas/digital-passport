@@ -45,6 +45,7 @@ export default function RegisterPage() {
             // upload image
             setStep('uploading')
             let imageUrl = ''
+            let cid = ''
 
             if (imageFile) {
                 const formData = new FormData()
@@ -56,6 +57,7 @@ export default function RegisterPage() {
                 if (!uploadRes.ok) throw new Error('Image upload failed')
                 const uploadData = await uploadRes.json()
                 imageUrl = uploadData.imageUrl
+                cid = uploadData.cid || ''
             }
 
             // save metadata to backend before minting
@@ -87,7 +89,7 @@ export default function RegisterPage() {
                 address: CONTRACT_ADDRESS,
                 abi: CONTRACT_ABI,
                 functionName: 'registerProduct',
-                args: [name, description, nfcUid, royaltyBasisPoints],
+                args: [name, description, nfcUid, royaltyBasisPoints, cid ? `ipfs://${cid}` : ''],
                 chain: sepolia,
                 account: address,
             })

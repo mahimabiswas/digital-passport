@@ -1,4 +1,4 @@
-export const CONTRACT_ADDRESS = '0xC7e35CF1074a4d577F0b78bd44FF7E340D7276C8' as const
+export const CONTRACT_ADDRESS = '0x66387E6EBBa3597652c14E2D643C685CAD80D693' as const
 
 export const CONTRACT_ABI = [
     {
@@ -87,6 +87,7 @@ export const CONTRACT_ABI = [
             { name: 'productDescription', type: 'string' },
             { name: 'nfcUid', type: 'string' },
             { name: 'royaltyBasisPoints', type: 'uint256' },
+            { name: 'imageURI', type: 'string' },
         ],
         outputs: [{ name: '', type: 'uint256' }],
     },

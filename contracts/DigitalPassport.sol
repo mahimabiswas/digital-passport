@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 
-contract DigitalPassport is ERC721 {
-
+contract DigitalPassport is ERC721URIStorage {
     struct Product {
         uint256 tokenId;
         address creator;
@@ -75,7 +74,8 @@ contract DigitalPassport is ERC721 {
         string memory productName,
         string memory productDescription,
         string memory nfcUid,
-        uint256 royaltyBasisPoints
+        uint256 royaltyBasisPoints,
+        string memory imageURI
     ) external returns (uint256) {
         require(royaltyBasisPoints <= 1000, "Royalty cannot exceed 10%");
         require(bytes(nfcUid).length > 0, "NFC UID required");
@@ -96,7 +96,9 @@ contract DigitalPassport is ERC721 {
 
         nfcToToken[nfcUid] = tokenId;
         _safeMint(msg.sender, tokenId);
-
+        if (bytes(imageURI).length > 0) {
+            _setTokenURI(tokenId, imageURI);
+        }
         emit ProductRegistered(tokenId, msg.sender, productName, nfcUid);
         return tokenId;
     }
@@ -298,4 +300,12 @@ contract DigitalPassport is ERC721 {
     function getPendingTransfer(uint256 tokenId) external view returns (PendingTransfer memory) {
         return pendingTransfers[tokenId];
     }
+    function tokenURI(uint256 tokenId) public view override(ERC721URIStorage) returns (string memory) {
+        return super.tokenURI(tokenId);
+    }
+
+    function supportsInterface(bytes4 interfaceId) public view override(ERC721URIStorage) returns (bool) {
+        return super.supportsInterface(interfaceId);
+    }
+
 }

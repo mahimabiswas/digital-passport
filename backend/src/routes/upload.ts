@@ -42,9 +42,11 @@ router.post('/', upload.single('image'), async (req: Request, res: Response) => 
         )
 
         const upload = await pinata.upload.public.file(file)
-        const imageUrl = `https://gateway.pinata.cloud/ipfs/${upload.cid}`
 
-        res.status(201).json({ imageUrl })
+        res.status(201).json({ 
+            imageUrl: `https://gateway.pinata.cloud/ipfs/${upload.cid}`,
+            cid: upload.cid 
+        })
     } catch (err: any) {
         res.status(500).json({ error: 'Image upload failed', details: err.message })
     }

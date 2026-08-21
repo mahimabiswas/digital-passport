@@ -12,7 +12,7 @@ interface EtherscanResponse {
 
 const router = Router()
 
-const CONTRACT_ADDRESS = '0xC7e35CF1074a4d577F0b78bd44FF7E340D7276C8'
+const CONTRACT_ADDRESS = '0x66387E6EBBa3597652c14E2D643C685CAD80D693'
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 
 router.get('/:tokenId', async (req: Request, res: Response) => {
