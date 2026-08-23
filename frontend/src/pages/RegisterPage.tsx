@@ -16,7 +16,11 @@ export default function RegisterPage() {
     const [royaltyPercent, setRoyaltyPercent] = useState('')
     const [imageFile, setImageFile] = useState<File | null>(null)
     const [imagePreview, setImagePreview] = useState<string | null>(null)
-
+    const [materialComposition, setMaterialComposition] = useState('')
+    const [countryOfOrigin, setCountryOfOrigin] = useState('')
+    const [sustainabilityInfo, setSustainabilityInfo] = useState('')
+    const [repairabilityInfo, setRepairabilityInfo] = useState('')
+    const [recyclabilityInfo, setRecyclabilityInfo] = useState('')
     const [step, setStep] = useState<'idle' | 'uploading' | 'saving' | 'minting' | 'done' | 'error'>('idle')
     const [error, setError] = useState<string | null>(null)
 
@@ -72,8 +76,14 @@ export default function RegisterPage() {
                     description,
                     nfcUid,
                     imageUrl,
+                    cid,
                     creatorAddress: address,
                     royaltyBasisPoints: Number(royaltyBasisPoints),
+                    materialComposition: materialComposition || null,
+                    countryOfOrigin: countryOfOrigin || null,
+                    sustainabilityInfo: sustainabilityInfo || null,
+                    repairabilityInfo: repairabilityInfo || null,
+                    recyclabilityInfo: recyclabilityInfo || null,
                 }),
             })
             if (!saveRes.ok) {
@@ -256,6 +266,48 @@ export default function RegisterPage() {
                                 </p>
                             )}
                         </label>
+                    </div>
+                    <div className="border border-border p-4">
+                        <label className="font-mono text-[10px] tracking-widest text-muted-foreground block mb-2">
+                            SUSTAINABILITY INFORMATION <span className="opacity-50">(OPTIONAL — ESPR ALIGNED)</span>
+                        </label>
+                        <div className="space-y-3">
+                            <input
+                                type="text"
+                                value={materialComposition}
+                                onChange={e => setMaterialComposition(e.target.value)}
+                                placeholder="Material composition e.g. 80% cotton, 20% polyester"
+                                className="w-full bg-transparent text-foreground font-sans text-sm outline-none placeholder:text-muted-foreground/40 border-b border-border pb-2"
+                            />
+                            <input
+                                type="text"
+                                value={countryOfOrigin}
+                                onChange={e => setCountryOfOrigin(e.target.value)}
+                                placeholder="Country of origin e.g. Portugal"
+                                className="w-full bg-transparent text-foreground font-sans text-sm outline-none placeholder:text-muted-foreground/40 border-b border-border pb-2"
+                            />
+                            <input
+                                type="text"
+                                value={sustainabilityInfo}
+                                onChange={e => setSustainabilityInfo(e.target.value)}
+                                placeholder="Sustainability credentials e.g. GOTS certified organic"
+                                className="w-full bg-transparent text-foreground font-sans text-sm outline-none placeholder:text-muted-foreground/40 border-b border-border pb-2"
+                            />
+                            <input
+                                type="text"
+                                value={repairabilityInfo}
+                                onChange={e => setRepairabilityInfo(e.target.value)}
+                                placeholder="Repair instructions e.g. resoleable, machine washable"
+                                className="w-full bg-transparent text-foreground font-sans text-sm outline-none placeholder:text-muted-foreground/40 border-b border-border pb-2"
+                            />
+                            <input
+                                type="text"
+                                value={recyclabilityInfo}
+                                onChange={e => setRecyclabilityInfo(e.target.value)}
+                                placeholder="End of life e.g. fully recyclable, take-back scheme available"
+                                className="w-full bg-transparent text-foreground font-sans text-sm outline-none placeholder:text-muted-foreground/40"
+                            />
+                        </div>
                     </div>
 
                 </div>

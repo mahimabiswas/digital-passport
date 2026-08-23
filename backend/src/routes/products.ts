@@ -12,9 +12,14 @@ router.post("/", async (req: Request, res: Response) => {
       description,
       nfcUid,
       imageUrl,
+      cid,
       creatorAddress,
       royaltyBasisPoints,
-      minPrice,
+      materialComposition,
+      countryOfOrigin,
+      sustainabilityInfo,
+      repairabilityInfo,
+      recyclabilityInfo,
     } = req.body
 
     // Check by NFC UID — not tokenId
@@ -30,9 +35,14 @@ router.post("/", async (req: Request, res: Response) => {
       description,
       nfcUid,
       imageUrl,
+      cid,
       creatorAddress: creatorAddress.toLowerCase(),
       royaltyBasisPoints,
-      minPrice,
+      materialComposition: materialComposition || null,
+      countryOfOrigin: countryOfOrigin || null,
+      sustainabilityInfo: sustainabilityInfo || null,
+      repairabilityInfo: repairabilityInfo || null,
+      recyclabilityInfo: recyclabilityInfo || null,
     })
 
     await product.save()

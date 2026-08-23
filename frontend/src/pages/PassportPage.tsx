@@ -9,9 +9,18 @@ export default function PassportPage() {
     const { nfcUid } = useParams()
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'
 
+    // const [metadata, setMetadata] = useState<{
+    //     imageUrl: string
+    //     description: string
+    // } | null>(null)
     const [metadata, setMetadata] = useState<{
         imageUrl: string
         description: string
+        materialComposition?: string
+        countryOfOrigin?: string
+        sustainabilityInfo?: string
+        repairabilityInfo?: string
+        recyclabilityInfo?: string
     } | null>(null)
 
     const [history, setHistory] = useState<{
@@ -67,7 +76,15 @@ export default function PassportPage() {
         if (!nfcUid) return
         fetch(`${BACKEND_URL}/api/products/nfc/${nfcUid}`)
             .then(res => res.json())
-            .then(data => setMetadata({ imageUrl: data.imageUrl, description: data.description }))
+            .then(data => setMetadata({
+                imageUrl: data.imageUrl,
+                description: data.description,
+                materialComposition: data.materialComposition || null,
+                countryOfOrigin: data.countryOfOrigin || null,
+                sustainabilityInfo: data.sustainabilityInfo || null,
+                repairabilityInfo: data.repairabilityInfo || null,
+                recyclabilityInfo: data.recyclabilityInfo || null,
+            }))
             .catch(err => console.error('Failed to fetch metadata:', err))
     }, [nfcUid])
 
@@ -303,6 +320,29 @@ export default function PassportPage() {
                                 </div>
                             ))}
                         </div>
+                        {(metadata?.materialComposition || metadata?.countryOfOrigin || metadata?.sustainabilityInfo || metadata?.repairabilityInfo || metadata?.recyclabilityInfo) && (
+                            <div className="border border-border mb-8">
+                                <div className="px-6 py-4 border-b border-border">
+                                    <p className="font-mono text-[10px] tracking-widest text-muted-foreground">
+                                        SUSTAINABILITY & PRODUCT INFORMATION
+                                    </p>
+                                </div>
+                                {[
+                                    { label: 'MATERIAL COMPOSITION', value: metadata?.materialComposition },
+                                    { label: 'COUNTRY OF ORIGIN', value: metadata?.countryOfOrigin },
+                                    { label: 'SUSTAINABILITY', value: metadata?.sustainabilityInfo },
+                                    { label: 'REPAIRABILITY', value: metadata?.repairabilityInfo },
+                                    { label: 'RECYCLABILITY', value: metadata?.recyclabilityInfo },
+                                ].filter(item => item.value).map((item, i) => (
+                                    <div key={i} className="px-6 py-4 border-b border-border last:border-b-0">
+                                        <p className="font-mono text-[10px] tracking-widest text-muted-foreground mb-1">
+                                            {item.label}
+                                        </p>
+                                        <p className="font-sans text-sm text-foreground">{item.value}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
 
                     </div>
                 </div>
@@ -497,7 +537,7 @@ export default function PassportPage() {
                                             )}
                                             <button
                                                 onClick={handleConfirmReceipt}
-                                                disabled={transferStep === 'confirming'|| !nfcVerified}
+                                                disabled={transferStep === 'confirming' || !nfcVerified}
                                                 className="w-full py-3 bg-primary text-primary-foreground font-mono text-[11px] tracking-widest hover:bg-primary/90 disabled:opacity-50 transition-colors"
                                             >
                                                 {transferStep === 'confirming' ? 'CONFIRMING...' : !nfcVerified ? 'VERIFY NFC TAG' : 'CONFIRM RECEIPT & COMPLETE TRANSFER'}
