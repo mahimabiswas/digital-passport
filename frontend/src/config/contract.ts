@@ -38,27 +38,6 @@ export const CONTRACT_ABI = [
         outputs: [{ name: '', type: 'uint256' }],
     },
     {
-        name: 'pendingTransfers',
-        type: 'function',
-        stateMutability: 'view',
-        inputs: [{ name: 'tokenId', type: 'uint256' }],
-        outputs: [
-            {
-                type: 'tuple',
-                components: [
-                    { name: 'seller', type: 'address' },
-                    { name: 'buyer', type: 'address' },
-                    { name: 'royaltyDue', type: 'uint256' },
-                    { name: 'salePrice', type: 'uint256' },
-                    { name: 'escrowAmount', type: 'uint256' },
-                    { name: 'depositedAt', type: 'uint256' },
-                    { name: 'active', type: 'bool' },
-                    { name: 'escrowDeposited', type: 'bool' },
-                ],
-            },
-        ],
-    },
-    {
         name: 'getPendingTransfer',
         type: 'function',
         stateMutability: 'view',
@@ -70,6 +49,7 @@ export const CONTRACT_ABI = [
                     { name: 'seller', type: 'address' },
                     { name: 'buyer', type: 'address' },
                     { name: 'royaltyDue', type: 'uint256' },
+                    { name: 'salePrice', type: 'uint256' },
                     { name: 'escrowAmount', type: 'uint256' },
                     { name: 'depositedAt', type: 'uint256' },
                     { name: 'active', type: 'bool' },
