@@ -26,17 +26,27 @@ function ProductCard({ product }: { product: Product }) {
     args: product.tokenId !== null ? [BigInt(product.tokenId)] : undefined,
     query: { enabled: product.tokenId !== null },
   })
-  
+  const { data: pendingTransfer } = useReadContract({
+    address: CONTRACT_ADDRESS,
+    abi: CONTRACT_ABI,
+    functionName: 'getPendingTransfer',
+    args: product.tokenId !== null ? [BigInt(product.tokenId)] : undefined,
+    query: { enabled: product.tokenId !== null },
+  })
+
   const { address } = useAccount()
 
   const status = product.tokenId === null
     ? 'incomplete'
-    : currentOwner?.toLowerCase() === address?.toLowerCase()
-    ? 'owned'
-    : 'transferred'
-//   console.log(currentOwner,product.description)
+    : pendingTransfer?.active
+      ? 'pending'
+      : currentOwner?.toLowerCase() === address?.toLowerCase()
+        ? 'owned'
+        : 'transferred'
+  //   console.log(currentOwner,product.description)
   const statusConfig = {
     owned: { label: 'OWNED', classes: 'border-primary/40 text-primary' },
+    pending: { label: 'TRANSFER PENDING', classes: 'border-amber-500/40 text-amber-400' },
     transferred: { label: 'TRANSFERRED', classes: 'border-muted-foreground/40 text-muted-foreground' },
     incomplete: { label: 'INCOMPLETE', classes: 'border-destructive/40 text-destructive' },
   }
@@ -46,7 +56,7 @@ function ProductCard({ product }: { product: Product }) {
   return (
     <Link
       to={product.tokenId !== null ? `/passport/${product.nfcUid}` : '#'}
-      className="block border border-border hover:border-primary/30 transition-colors group"
+      className="flex flex-col border border-border hover:border-primary/30 transition-colors group h-full"
     >
       {/* Image */}
       <div className="aspect-square bg-card overflow-hidden">
@@ -66,7 +76,7 @@ function ProductCard({ product }: { product: Product }) {
       </div>
 
       {/* Info */}
-      <div className="p-4 border-t border-border">
+      <div className="p-4 border-t border-border flex flex-col flex-1">
         <div className="flex items-start justify-between gap-2 mb-2">
           <h3 className="font-display font-bold text-lg uppercase leading-tight">
             {product.name}
@@ -76,7 +86,7 @@ function ProductCard({ product }: { product: Product }) {
           </span>
         </div>
 
-        <p className="font-mono text-[10px] text-muted-foreground mb-3 line-clamp-2">
+        <p className="font-mono text-[10px] text-muted-foreground mb-3 line-clamp-2 flex-1">
           {product.description}
         </p>
 
@@ -179,13 +189,13 @@ export default function DashboardPage() {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-px bg-border">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-px bg-border items-stretch">
             {products.map(product => (
-              <div key={product.nfcUid} className="bg-background">
-                <ProductCard product={product} />
-              </div>
+                <div key={product.nfcUid} className="bg-background h-full">
+                    <ProductCard product={product} />
+                </div>
             ))}
-          </div>
+        </div>
         )}
 
       </div>
