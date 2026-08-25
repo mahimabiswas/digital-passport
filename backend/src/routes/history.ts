@@ -26,7 +26,8 @@ router.get('/:tokenId', async (req: Request, res: Response) => {
     const tokenIdHex = '0x' + tokenId.toString(16).padStart(64, '0')
 
     // const url = `https://api-sepolia.etherscan.io/api?module=logs&action=getLogs&address=${CONTRACT_ADDRESS}&topic0=${transferTopic}&topic2=${tokenIdHex}&topic0_2_opr=and&fromBlock=11161387&toBlock=latest&page=1&offset=100&apikey=${process.env.ETHERSCAN_API_KEY}`
-    const url = `https://api.etherscan.io/v2/api?chainid=11155111&module=logs&action=getLogs&address=${CONTRACT_ADDRESS}&topic0=${transferTopic}&topic3=${tokenIdHex}&topic0_3_opr=and&fromBlock=11161387&toBlock=latest&page=1&offset=100&apikey=${process.env.ETHERSCAN_API_KEY}`
+    // const url = `https://api.etherscan.io/v2/api?chainid=11155111&module=logs&action=getLogs&address=${CONTRACT_ADDRESS}&topic0=${transferTopic}&topic3=${tokenIdHex}&topic0_3_opr=and&fromBlock=11161387&toBlock=latest&page=1&offset=100&apikey=${process.env.ETHERSCAN_API_KEY}`
+    const url = `https://api.etherscan.io/v2/api?chainid=11155111&module=logs&action=getLogs&address=${CONTRACT_ADDRESS}&topic0=${transferTopic}&topic3=${tokenIdHex}&topic0_3_opr=and&fromBlock=0&toBlock=latest&page=1&offset=100&apikey=${process.env.ETHERSCAN_API_KEY}`
     // console.log('Fetching history from Etherscan:', url)
     const response = await fetch(url)
     const data = await response.json() as EtherscanResponse
