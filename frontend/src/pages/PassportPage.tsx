@@ -36,6 +36,14 @@ export default function PassportPage() {
     const [showInitiateForm, setShowInitiateForm] = useState(false)
     const [buyerAddress, setBuyerAddress] = useState('')
     const [salePrice, setSalePrice] = useState('')
+    const [currency, setCurrency] = useState("GBP");
+    const [ethRate, setEthRate] = useState<number | null>(null);
+    const [rateLoading, setRateLoading] = useState(false);
+    const [rateError, setRateError] = useState("");
+    const ethSalePrice =
+    salePrice && ethRate
+        ? (Number(salePrice) / ethRate).toString()
+        : ""
     const [transferStep, setTransferStep] = useState<'idle' | 'confirming' | 'done' | 'error'>('idle')
     const [transferError, setTransferError] = useState<string | null>(null)
     const [nfcVerified, setNfcVerified] = useState(false)
@@ -87,6 +95,33 @@ export default function PassportPage() {
             }))
             .catch(err => console.error('Failed to fetch metadata:', err))
     }, [nfcUid])
+    useEffect(() => {
+        const fetchEthRate = async () => {
+            setRateLoading(true);
+            setRateError("");
+
+            try {
+                const response = await fetch(
+                    `https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=${currency.toLowerCase()}`
+                );
+
+                if (!response.ok) {
+                    throw new Error("Failed to fetch exchange rate");
+                }
+
+                const data = await response.json();
+                setEthRate(data.ethereum[currency.toLowerCase()]);
+            } catch (error) {
+                console.error("Failed to fetch ETH exchange rate:", error);
+                setEthRate(null);
+                setRateError("Unable to fetch exchange rate");
+            } finally {
+                setRateLoading(false);
+            }
+        };
+
+        fetchEthRate();
+    }, [currency]);
 
     useEffect(() => {
         if (tokenId === undefined) return
@@ -160,13 +195,15 @@ export default function PassportPage() {
         setTransferError(null)
         try {
             setTransferStep('confirming')
-            const royalty = royaltyDue(salePrice, product.royaltyBasisPoints)
+            // const royalty = royaltyDue(salePrice, product.royaltyBasisPoints)
+            const royalty = royaltyDue(ethSalePrice, product.royaltyBasisPoints)
             const { sepolia: sepoliaChain } = await import('viem/chains')
             await sendTx({
                 address: CONTRACT_ADDRESS,
                 abi: CONTRACT_ABI,
                 functionName: 'initiateTransfer',
-                args: [tokenId, buyerAddress as `0x${string}`, royalty, parseEther(salePrice)],
+                // args: [tokenId, buyerAddress as `0x${string}`, royalty, parseEther(salePrice)],
+                args: [tokenId, buyerAddress as `0x${string}`, royalty, parseEther(ethSalePrice)],
                 chain: sepoliaChain,
                 account: address,
             })
@@ -451,19 +488,62 @@ export default function PassportPage() {
                                     </div>
                                     <div>
                                         <label className="font-mono text-[10px] tracking-widest text-muted-foreground block mb-2">
-                                            AGREED SALE PRICE (ETH)
+                                            AGREED SALE PRICE
                                         </label>
-                                        <input
-                                            type="number"
-                                            value={salePrice}
-                                            onChange={e => setSalePrice(e.target.value)}
-                                            placeholder="0.5"
-                                            step="0.01"
-                                            className="w-full bg-transparent border border-border px-3 py-2 font-mono text-sm text-foreground outline-none focus:border-primary/50"
-                                        />
-                                        {salePrice && !isPrimarySale && (
+
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="number"
+                                                value={salePrice}
+                                                onChange={e => setSalePrice(e.target.value)}
+                                                placeholder="500"
+                                                step="0.01"
+                                                min="0"
+                                                className="flex-1 bg-transparent border border-border px-3 py-2 font-mono text-sm text-foreground outline-none focus:border-primary/50"
+                                            />
+
+                                            <select
+                                                value={currency}
+                                                onChange={e => setCurrency(e.target.value)}
+                                                className="bg-transparent border border-border px-3 py-2 font-mono text-sm text-foreground outline-none focus:border-primary/50"
+                                            >
+                                                <option value="GBP">GBP</option>
+                                                <option value="USD">USD</option>
+                                                <option value="EUR">EUR</option>
+                                                <option value="INR">INR</option>
+                                            </select>
+                                        </div>
+
+                                        {salePrice && ethRate && (
                                             <p className="font-mono text-[10px] text-muted-foreground mt-1">
-                                                ROYALTY DUE: {Number(royaltyDue(salePrice, product.royaltyBasisPoints)) / 1e18} ETH
+                                                ≈ {(Number(salePrice) / ethRate).toFixed(6)} ETH
+                                            </p>
+                                        )}
+
+                                        {rateLoading && (
+                                            <p className="font-mono text-[10px] text-muted-foreground mt-1">
+                                                FETCHING ETH RATE...
+                                            </p>
+                                        )}
+
+                                        {rateError && (
+                                            <p className="font-mono text-[10px] text-destructive mt-1">
+                                                {rateError}
+                                            </p>
+                                        )}
+
+                                        {salePrice && !isPrimarySale && ethRate && (
+                                            <p className="font-mono text-[10px] text-muted-foreground mt-1">
+                                                ROYALTY DUE:{" "}
+                                                {
+                                                    Number(
+                                                        royaltyDue(
+                                                            (Number(salePrice) / ethRate).toString(),
+                                                            product.royaltyBasisPoints
+                                                        )
+                                                    ) / 1e18
+                                                }{" "}
+                                                ETH
                                             </p>
                                         )}
                                     </div>
